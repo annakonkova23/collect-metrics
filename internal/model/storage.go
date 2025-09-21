@@ -37,7 +37,7 @@ func (ms *MemStorage) SetMetric(name, typeMetr, value string) error {
 	log.Println(name)
 	if typeMetr == Counter {
 		if delta, err := strconv.ParseInt(value, 10, 64); err != nil {
-			msg := fmt.Errorf("Некорректное значение счетчика [%s]", value)
+			msg := fmt.Sprintf("Некорректное значение счетчика [%s]", value)
 			return fmt.Errorf("%s", msg)
 		} else {
 			log.Println(delta)
@@ -59,7 +59,7 @@ func (ms *MemStorage) SetMetric(name, typeMetr, value string) error {
 	}
 	if typeMetr == Gauge {
 		if valueFloat, err := strconv.ParseFloat(value, 64); err != nil {
-			msg := fmt.Errorf("Некорректное значение float64 [%s]", value)
+			msg := fmt.Sprintf("Некорректное значение float64 [%s]", value)
 			return fmt.Errorf("%s", msg)
 		} else {
 			valueVal = &valueFloat
