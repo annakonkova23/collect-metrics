@@ -38,7 +38,7 @@ func (s *Server) updateHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) valueHandler(w http.ResponseWriter, r *http.Request) {
 	paramName := chi.URLParam(r, "name")
 	paramType := chi.URLParam(r, "type")
-	log.Printf("param:%s %s %s", paramName, paramType)
+	log.Printf("param:%s %s", paramName, paramType)
 	value, ok, err := s.Collector.GetMetricValueByParam(paramName, paramType)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
