@@ -1,21 +1,21 @@
 package handler
 
 import (
-	"github.com/annakonkova23/collect-metrics/internal/models"
+	"collect-metrics/internal/service"
 	"net/http"
 )
 
 type Server struct {
-	mux        *http.ServeMux
-	url        string
-	MemStorage *models.MemStorage
+	mux       *http.ServeMux
+	url       string
+	Collector *service.Collector
 }
 
 func NewServer(url string) *Server {
 	return &Server{
-		mux:        http.NewServeMux(),
-		url:        url,
-		MemStorage: models.NewMemStorage(),
+		mux:       http.NewServeMux(),
+		url:       url,
+		Collector: service.NewCollector(),
 	}
 }
 
