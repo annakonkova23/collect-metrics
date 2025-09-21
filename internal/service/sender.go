@@ -37,8 +37,8 @@ func (s *Sender) SendRequest(b chan bool) {
 			go func() {
 				valueStr := strconv.FormatFloat(value, 'f', -1, 64)
 				log.Printf("Запрос %s %s", name, valueStr)
-				if err := s.client.Post(s.GetUrlForMetric(name, s.runMetric.GetTypeMetric(name), valueStr)); err != nil {
-					log.Printf("Error sending metric: %v", err)
+				if err := s.client.Post(s.GetURLForMetric(name, s.runMetric.GetTypeMetric(name), valueStr)); err != nil {
+					log.Printf("Ошибка отправки метрики %s: %v", name, err)
 				} else {
 					log.Printf("Успешный ответ %s %s", name, valueStr)
 				}
@@ -51,7 +51,7 @@ func (s *Sender) SendRequest(b chan bool) {
 	}
 }
 
-func (s *Sender) GetUrlForMetric(name, typeM, value string) string {
+func (s *Sender) GetURLForMetric(name, typeM, value string) string {
 	return s.url + typeM + "/" + name + "/" + value
 }
 
