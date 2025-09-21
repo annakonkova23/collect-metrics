@@ -31,7 +31,7 @@ func (c *Client) Post(url string) error {
 	}
 
 	if response.StatusCode() != http.StatusOK {
-		return fmt.Errorf("%s", response.Body)
+		return fmt.Errorf("%s", response.Body())
 	}
 	return nil
 }
