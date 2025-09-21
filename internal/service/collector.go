@@ -26,7 +26,7 @@ func (c *Collector) ParseAndSaveMetricsByUrl(url string) error {
 		return fmt.Errorf("%s", "Невалидный Url")
 	}
 	if len(parts) == 3 || (len(parts) > 3 && parts[3] == "") {
-		log.Println("Передан без именования метрики")
+		log.Println("Запрос без именования метрики")
 		return fmt.Errorf("%s", ERROR_NOT_FOUND)
 	}
 	if len(parts) >= 4 {
