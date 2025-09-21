@@ -84,3 +84,22 @@ func (ms *MemStorage) String() string {
 	})
 	return strings.Join(str, "\n")
 }
+
+func (ms *MemStorage) GetMetric(name, typeMetric string) (string, bool) {
+	metric, ok := ms.metrics.Load(name)
+	if ok {
+		value := strconv.FormatFloat(*metric.(Metrics).Value, 'f', -1, 64)
+		return value, true
+	}
+	return "", false
+}
+
+func (ms *MemStorage) GetMetricAllValues() map[string]string {
+	values := make(map[string]string, 0)
+	ms.metrics.Range(func(key, value interface{}) bool {
+		// Проверка типа ключа (в данном примере ожидаем строку)
+		values[key.(string)] = strconv.FormatFloat(*value.(Metrics).Value, 'f', -1, 64)
+		return true
+	})
+	return values
+}
