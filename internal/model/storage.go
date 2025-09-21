@@ -19,12 +19,13 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-func (s *MemStorage) SetMetric(name, typeMetr, value string) error {
+func (ms *MemStorage) SetMetric(name, typeMetr, value string) error {
 	if name == "" {
-		return fmt.Errorf("%s", "name is empty")
+		return fmt.Errorf("%s", "Имя метрики не может быть пустым")
 	}
 	if typeMetr != Counter && typeMetr != Gauge {
-		return fmt.Errorf("Некорректный тип метрики[%s]", typeMetr)
+		msg := fmt.Sprintf("Некорректный тип метрики[%s]", typeMetr)
+		return fmt.Errorf("%s", msg)
 	}
 	if value == "" {
 		return fmt.Errorf("%s", "Не заполнено значение")
@@ -36,10 +37,11 @@ func (s *MemStorage) SetMetric(name, typeMetr, value string) error {
 	log.Println(name)
 	if typeMetr == Counter {
 		if delta, err := strconv.ParseInt(value, 10, 64); err != nil {
-			return fmt.Errorf("Некорректное значение счетчика [%s]", value)
+			msg := fmt.Errorf("Некорректное значение счетчика [%s]", value)
+			return fmt.Errorf("%s", msg)
 		} else {
 			log.Println(delta)
-			valueMetric, ok := s.metrics.Load(name)
+			valueMetric, ok := ms.metrics.Load(name)
 			if !ok {
 				deltaVal = &delta
 				vF := float64(delta)
@@ -57,12 +59,13 @@ func (s *MemStorage) SetMetric(name, typeMetr, value string) error {
 	}
 	if typeMetr == Gauge {
 		if valueFloat, err := strconv.ParseFloat(value, 64); err != nil {
-			return fmt.Errorf("Некорректное значение счетчика [%s]", value)
+			msg := fmt.Errorf("Некорректное значение float64 [%s]", value)
+			return fmt.Errorf("%s", msg)
 		} else {
 			valueVal = &valueFloat
 		}
 	}
-	s.metrics.Store(name, Metrics{
+	ms.metrics.Store(name, Metrics{
 		ID:    name,
 		MType: typeMetr,
 		Delta: deltaVal,
@@ -71,9 +74,9 @@ func (s *MemStorage) SetMetric(name, typeMetr, value string) error {
 	return nil
 }
 
-func (m *MemStorage) String() string {
+func (ms *MemStorage) String() string {
 	str := make([]string, 0)
-	m.metrics.Range(func(key, value interface{}) bool {
+	ms.metrics.Range(func(key, value interface{}) bool {
 		// Проверка типа ключа (в данном примере ожидаем строку)
 		js, _ := json.Marshal(value.(Metrics))
 		str = append(str, string(js))
