@@ -1,7 +1,7 @@
 package main
 
 import (
-	"collect-metrics/internal/handler"
+	"github.com/annakonkova23/collect-metrics/internal/handler"
 	"log"
 )
 

@@ -1,8 +1,8 @@
 package service
 
 import (
-	"collect-metrics/internal/model"
 	"fmt"
+	"github.com/annakonkova23/collect-metrics/internal/model"
 	"log"
 	"strings"
 )

@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"collect-metrics/internal/service"
+	"github.com/annakonkova23/collect-metrics/internal/service"
 	"net/http"
 )
 
