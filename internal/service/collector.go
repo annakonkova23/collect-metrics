@@ -42,3 +42,40 @@ func (c *Collector) ParseAndSaveMetricsByURL(url string) error {
 	}
 	return nil
 }
+
+func (c *Collector) ParseAndSaveMetricsByParam(name, typeMetric, value string) error {
+	err := c.MemStorage.SetMetric(name, typeMetric, value)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Collector) GetMetricValue(url string) (string, bool, error) {
+	var typeMetric, nameMetric string
+	parts := strings.Split(url, "/")
+	if len(parts) < 2 || parts[1] != "value" {
+		return "", false, fmt.Errorf("%s", "Невалидный Url")
+	}
+	if len(parts) == 3 || (len(parts) > 3 && parts[3] == "") {
+		log.Println("Запрос без именования метрики")
+		return "", false, fmt.Errorf("%s", ErrorNotFound)
+	}
+	if len(parts) >= 4 {
+		typeMetric = parts[2]
+		nameMetric = parts[3]
+	}
+	value, ok := c.MemStorage.GetMetric(nameMetric, typeMetric)
+	return value, ok, nil
+
+}
+
+func (c *Collector) GetMetricValueByParam(nameMetric, typeMetric string) (string, bool, error) {
+	value, ok := c.MemStorage.GetMetric(nameMetric, typeMetric)
+	return value, ok, nil
+
+}
+
+func (c *Collector) GetMetricAllValues() map[string]string {
+	return c.MemStorage.GetMetricAllValues()
+}
