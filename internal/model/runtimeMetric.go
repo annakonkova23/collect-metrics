@@ -11,8 +11,7 @@ import (
 type RMetric int
 
 const (
-	pollInterval = 2
-	nameCounter  = "PollCount"
+	nameCounter = "PollCount"
 )
 const (
 	Alloc RMetric = iota
@@ -76,7 +75,8 @@ var allMetrics = []RMetric{Alloc,
 }
 
 type RuntimeMetric struct {
-	Metrics map[string]float64
+	Metrics      map[string]float64
+	pollInterval int
 }
 
 func (r RMetric) String() string {
@@ -110,9 +110,10 @@ func (r RMetric) String() string {
 	}[r]
 }
 
-func NewRuntimeMetric() *RuntimeMetric {
+func NewRuntimeMetric(pollInterval int) *RuntimeMetric {
 	return &RuntimeMetric{
-		Metrics: make(map[string]float64),
+		Metrics:      make(map[string]float64),
+		pollInterval: pollInterval,
 	}
 }
 func (rm *RuntimeMetric) CalcMetric() map[string]float64 {
@@ -191,7 +192,7 @@ func (rm *RuntimeMetric) UpdateMetric(chanel chan bool) {
 			close(chanel)
 		})
 		rm.Metrics[nameCounter]++
-		time.Sleep(pollInterval * time.Second)
+		time.Sleep(time.Duration(rm.pollInterval) * time.Second)
 	}
 }
 

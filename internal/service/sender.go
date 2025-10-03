@@ -1,29 +1,28 @@
 package service
 
 import (
-	"github.com/annakonkova23/collect-metrics/internal/model"
-	"github.com/annakonkova23/collect-metrics/internal/service/client"
 	"log"
 	"strconv"
 	"sync"
 	"time"
-)
 
-const (
-	reportInterval = 10
+	"github.com/annakonkova23/collect-metrics/internal/agent"
+	"github.com/annakonkova23/collect-metrics/internal/model"
 )
 
 type Sender struct {
-	client    *client.Client
-	runMetric *model.RuntimeMetric
-	url       string
+	client         *agent.Client
+	runMetric      *model.RuntimeMetric
+	url            string
+	reportInterval int
 }
 
-func NewSender(url string) *Sender {
+func NewSender(url string, pollInterval, reportInterval int) *Sender {
 	return &Sender{
-		client:    client.NewClient(),
-		runMetric: model.NewRuntimeMetric(),
-		url:       url,
+		client:         agent.NewClient(),
+		runMetric:      model.NewRuntimeMetric(pollInterval),
+		url:            url,
+		reportInterval: reportInterval,
 	}
 }
 func (s *Sender) SendRequest(b chan bool) {
@@ -46,7 +45,7 @@ func (s *Sender) SendRequest(b chan bool) {
 			}()
 		}
 		wg.Wait()
-		time.Sleep(time.Duration(reportInterval) * time.Second)
+		time.Sleep(time.Duration(s.reportInterval) * time.Second)
 
 	}
 }
