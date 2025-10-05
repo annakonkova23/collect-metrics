@@ -44,7 +44,7 @@ func main() {
 			pollInterval = defaultPollInterval
 		}
 	} else {
-		reportInterval = flagReportInterval
+		pollInterval = flagPollInterval
 	}
 	URL := ""
 	if host != "" {
