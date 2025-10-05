@@ -4,6 +4,7 @@ import (
 	"flag"
 	"github.com/annakonkova23/collect-metrics/internal/handler"
 	"log"
+	"os"
 )
 
 const (
@@ -13,6 +14,9 @@ const (
 func main() {
 	host := flag.String("a", defaultHost, "Хост")
 	flag.Parse()
+	if envHost := os.Getenv("ADDRESS"); envHost != "" {
+		host = &envHost
+	}
 	if host == nil {
 		panic("Не указан адрес")
 	}

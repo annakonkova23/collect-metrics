@@ -5,6 +5,7 @@ import (
 	"github.com/annakonkova23/collect-metrics/internal/model"
 	"log"
 	"strings"
+	"strconv"
 )
 
 const (
@@ -13,6 +14,12 @@ const (
 
 type Collector struct {
 	MemStorage *model.MemStorage
+}
+
+type Metric struct {
+	Name  string
+	Type  string
+	Value string
 }
 
 func NewCollector() *Collector {
@@ -76,6 +83,24 @@ func (c *Collector) GetMetricValueByParam(nameMetric, typeMetric string) (string
 
 }
 
-func (c *Collector) GetMetricAllValues() map[string]string {
-	return c.MemStorage.GetMetricAllValues()
+func (c *Collector) GetMetricAllValues() []*Metric {
+	metric:= c.MemStorage.GetMetricAllValues()
+	metricResult := make([]*Metric, len(metric))
+	for i, m := range metric {
+		metricResult[i] = &Metric{Name: m.ID, Type : m.MType}
+		value:=""
+		if m.MType == model.Counter {
+			if m.Delta != nil {
+				value=strconv.FormatInt(*m.Delta, 10)
+			}
+		}
+		if m.MType == model.Gauge {
+			if m.Value != nil {
+				value=strconv.FormatFloat(*m.Value, 'f', -1, 64)
+			}
+		}
+		metricResult[i].Value=value
+	}
+	return metricResult
+	
 }

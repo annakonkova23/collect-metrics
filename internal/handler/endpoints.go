@@ -9,11 +9,6 @@ import (
 	"net/http"
 )
 
-type KeyValuePair struct {
-	Key   string
-	Value string
-}
-
 func (s *Server) updateHandler(w http.ResponseWriter, r *http.Request) {
 
 	paramName := chi.URLParam(r, "name")
@@ -67,26 +62,22 @@ func (s *Server) allValuesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Функция для генерации HTML-таблицы
-func GenerateHTMLTable(data map[string]string, w http.ResponseWriter) {
-	// Преобразуем map в slice KeyValuePair для удобства
-	var pairs []KeyValuePair
-	for k, v := range data {
-		pairs = append(pairs, KeyValuePair{Key: k, Value: v})
-	}
-
+func GenerateHTMLTable(data []*service.Metric, w http.ResponseWriter) {
 	// Определяем шаблон HTML-таблицы
 	const tableTemplate = `
         <table border="1" style="border-collapse: collapse; width: 50%; margin: 20px auto;">
             <thead>
                 <tr>
                     <th style="padding: 8px; background-color: #f2f2f2;">Метрика</th>
+					<th style="padding: 8px; background-color: #f2f2f2;">Тип</th>
                     <th style="padding: 8px; background-color: #f2f2f2;">Значение</th>
                 </tr>
             </thead>
             <tbody>
                 {{range .}}
                 <tr>
-                    <td style="padding: 6px; border: 1px solid #ddd;">{{.Key}}</td>
+                    <td style="padding: 6px; border: 1px solid #ddd;">{{.Name}}</td>
+					<td style="padding: 6px; border: 1px solid #ddd;">{{.Type}}</td>
                     <td style="padding: 6px; border: 1px solid #ddd;">{{.Value}}</td>
                 </tr>
                 {{end}}
@@ -101,7 +92,7 @@ func GenerateHTMLTable(data map[string]string, w http.ResponseWriter) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	if err := tmpl.Execute(w, pairs); err != nil {
+	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, "Ошибка при рендеринге шаблона", http.StatusInternalServerError)
 	}
 }

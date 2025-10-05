@@ -4,18 +4,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"slices"
 	"strconv"
-	"strings"
 	"sync"
 )
 
 type MemStorage struct {
-	metrics sync.Map
+	mx      sync.RWMutex
+	metrics []*Metrics
 }
 
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
-		metrics: sync.Map{},
+		metrics: make([]*Metrics, 0),
 	}
 }
 
@@ -35,28 +36,30 @@ func (ms *MemStorage) SetMetric(name, typeMetr, value string) error {
 	var valueVal *float64
 	log.Println(typeMetr)
 	log.Println(name)
+	ms.mx.Lock()
+	defer ms.mx.Unlock()
+	idx := slices.IndexFunc(ms.metrics, func(m *Metrics) bool {
+		if m.ID == name && m.MType == typeMetr {
+			return true
+		}
+		return false
+	})
 	if typeMetr == Counter {
 		if delta, err := strconv.ParseInt(value, 10, 64); err != nil {
 			msg := fmt.Sprintf("Некорректное значение счетчика [%s]", value)
 			return fmt.Errorf("%s", msg)
 		} else {
 			log.Println(delta)
-			valueMetric, ok := ms.metrics.Load(name)
-			if !ok {
-				deltaVal = &delta
-				vF := float64(delta)
-				valueVal = &vF
-			} else {
-				if valueMetric.(Metrics).Value != nil {
-					valueFloat := *valueMetric.(Metrics).Value + float64(delta)
-					valueVal = &valueFloat
-					deltaVal = &delta
+			if idx >= 0 {
+				if ms.metrics[idx].Delta != nil {
+					delta = *ms.metrics[idx].Delta + delta
 				}
-
 			}
-		}
+			deltaVal = &delta
 
+		}
 	}
+
 	if typeMetr == Gauge {
 		if valueFloat, err := strconv.ParseFloat(value, 64); err != nil {
 			msg := fmt.Sprintf("Некорректное значение float64 [%s]", value)
@@ -65,41 +68,59 @@ func (ms *MemStorage) SetMetric(name, typeMetr, value string) error {
 			valueVal = &valueFloat
 		}
 	}
-	ms.metrics.Store(name, Metrics{
-		ID:    name,
-		MType: typeMetr,
-		Delta: deltaVal,
-		Value: valueVal,
-	})
+	if idx >= 0 {
+		ms.metrics[idx].Value = valueVal
+		ms.metrics[idx].Delta = deltaVal
+	} else {
+		ms.metrics = append(ms.metrics, &Metrics{
+			ID:    name,
+			MType: typeMetr,
+			Delta: deltaVal,
+			Value: valueVal,
+		})
+	}
 	return nil
 }
 
 func (ms *MemStorage) String() string {
-	str := make([]string, 0)
-	ms.metrics.Range(func(key, value interface{}) bool {
-		// Проверка типа ключа (в данном примере ожидаем строку)
-		js, _ := json.Marshal(value.(Metrics))
-		str = append(str, string(js))
-		return true
-	})
-	return strings.Join(str, "\n")
+	ms.mx.RLock()
+	defer ms.mx.RUnlock()
+	js, _ := json.Marshal(ms.metrics)
+	return string(js)
 }
 
 func (ms *MemStorage) GetMetric(name, typeMetric string) (string, bool) {
-	metric, ok := ms.metrics.Load(name)
-	if ok {
-		value := strconv.FormatFloat(*metric.(Metrics).Value, 'f', -1, 64)
-		return value, true
+	ms.mx.RLock()
+	defer ms.mx.RUnlock()
+	idx := slices.IndexFunc(ms.metrics, func(m *Metrics) bool {
+		if m.ID == name && m.MType == typeMetric {
+			return true
+		}
+		return false
+	})
+	if idx >= 0 {
+		if typeMetric == Counter {
+			if ms.metrics[idx].Delta != nil {
+				return strconv.FormatInt(*ms.metrics[idx].Delta, 10), true
+			}
+
+		}
+		if typeMetric == Gauge {
+			if ms.metrics[idx].Value != nil {
+				return strconv.FormatFloat(*ms.metrics[idx].Value, 'f', -1, 64), true
+			}
+		}
+
 	}
 	return "", false
 }
 
-func (ms *MemStorage) GetMetricAllValues() map[string]string {
-	values := make(map[string]string, 0)
-	ms.metrics.Range(func(key, value interface{}) bool {
-		// Проверка типа ключа (в данном примере ожидаем строку)
-		values[key.(string)] = strconv.FormatFloat(*value.(Metrics).Value, 'f', -1, 64)
-		return true
-	})
-	return values
+func (ms *MemStorage) GetMetricAllValues() []*Metrics {
+	ms.mx.RLock()
+	defer ms.mx.RUnlock()
+	metrics := make([]*Metrics, len(ms.metrics))
+	for i, m := range ms.metrics {
+		metrics[i] = m.Copy()
+	}
+	return metrics
 }

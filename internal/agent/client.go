@@ -17,11 +17,6 @@ func NewClient() *Client {
 }
 
 func (c *Client) Post(url string) error {
-	req, err := http.NewRequest("POST", url, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "text/plain")
 	response, err := c.client.R().
 		SetHeader("Content-Type", "text/plain").
 		Post(url)
