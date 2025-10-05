@@ -21,7 +21,7 @@ func main() {
 	var reportInterval, flagReportInterval int
 	flag.StringVar(&flagHost, "a", defaultHost, "Хост")
 	flag.IntVar(&flagPollInterval, "p", defaultPollInterval, "Частота опроса метрик из пакета runtime (в секундах)")
-	flag.IntVar(&flagPollInterval, "r", defaultReportInterval, "Частота отправки метрик на сервер (в секундах)")
+	flag.IntVar(&flagReportInterval, "r", defaultReportInterval, "Частота отправки метрик на сервер (в секундах)")
 	flag.Parse()
 
 	if envHost = os.Getenv("ADDRESS"); envHost != "" {
