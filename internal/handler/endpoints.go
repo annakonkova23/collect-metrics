@@ -5,7 +5,6 @@ import (
 	"github.com/annakonkova23/collect-metrics/internal/service"
 	"github.com/go-chi/chi/v5"
 	"html/template"
-	"log"
 	"net/http"
 )
 
@@ -14,12 +13,12 @@ func (s *Server) updateHandler(w http.ResponseWriter, r *http.Request) {
 	paramName := chi.URLParam(r, "name")
 	paramType := chi.URLParam(r, "type")
 	paramValue := chi.URLParam(r, "value")
-	log.Printf("param:%s %s %s", paramName, paramType, paramValue)
+	s.logger.Debug(fmt.Sprintf("param:%s %s %s", paramName, paramType, paramValue))
 	err := s.Collector.ParseAndSaveMetricsByParam(paramName, paramType, paramValue)
 	if err != nil {
-		if err.Error() == service.ErrorNotFound {
-			log.Println("Передаём ошибку 404")
-			http.Error(w, service.ErrorNotFound, http.StatusNotFound)
+		if err == service.ErrorNotFound {
+			s.logger.Debug("Передаём ошибку 404")
+			http.Error(w, service.ErrorNotFound.Error(), http.StatusNotFound)
 			return
 		} else {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -33,7 +32,7 @@ func (s *Server) updateHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) valueHandler(w http.ResponseWriter, r *http.Request) {
 	paramName := chi.URLParam(r, "name")
 	paramType := chi.URLParam(r, "type")
-	log.Printf("param:%s %s", paramName, paramType)
+	s.logger.Debug(fmt.Sprintf("param:%s %s", paramName, paramType))
 	value, ok, err := s.Collector.GetMetricValueByParam(paramName, paramType)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

@@ -3,7 +3,6 @@ package model
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"slices"
 	"strconv"
 	"sync"
@@ -34,8 +33,6 @@ func (ms *MemStorage) SetMetric(name, typeMetr, value string) error {
 	}
 	var deltaVal *int64
 	var valueVal *float64
-	log.Println(typeMetr)
-	log.Println(name)
 	ms.mx.Lock()
 	defer ms.mx.Unlock()
 	idx := slices.IndexFunc(ms.metrics, func(m *Metrics) bool {
@@ -49,7 +46,6 @@ func (ms *MemStorage) SetMetric(name, typeMetr, value string) error {
 			msg := fmt.Sprintf("Некорректное значение счетчика [%s]", value)
 			return fmt.Errorf("%s", msg)
 		} else {
-			log.Println(delta)
 			if idx >= 0 {
 				if ms.metrics[idx].Delta != nil {
 					delta = *ms.metrics[idx].Delta + delta

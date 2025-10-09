@@ -1,11 +1,12 @@
 package model
 
 import (
-	"log"
 	"math/rand"
 	"runtime"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type RMetric int
@@ -77,6 +78,7 @@ var allMetrics = []RMetric{Alloc,
 type RuntimeMetric struct {
 	Metrics      map[string]float64
 	pollInterval int
+	logger       *zap.Logger
 }
 
 func (r RMetric) String() string {
@@ -110,10 +112,11 @@ func (r RMetric) String() string {
 	}[r]
 }
 
-func NewRuntimeMetric(pollInterval int) *RuntimeMetric {
+func NewRuntimeMetric(pollInterval int, logger *zap.Logger) *RuntimeMetric {
 	return &RuntimeMetric{
 		Metrics:      make(map[string]float64),
 		pollInterval: pollInterval,
+		logger:       logger,
 	}
 }
 func (rm *RuntimeMetric) CalcMetric() map[string]float64 {
@@ -183,12 +186,14 @@ func (rm *RuntimeMetric) CalcMetric() map[string]float64 {
 }
 
 func (rm *RuntimeMetric) UpdateMetric(chanel chan bool) {
-	log.Println("Запускаем обновление метрик")
+	rm.logger.Info("Запускаем обновление метрик",
+		zap.Int("pollInterval", rm.pollInterval),
+	)
 	var once sync.Once
 	for {
 		rm.Metrics = rm.CalcMetric()
 		once.Do(func() {
-			log.Println("Посчитали метрики")
+			rm.logger.Info("Метрики первый раз рассчитались")
 			close(chanel)
 		})
 		rm.Metrics[nameCounter]++
