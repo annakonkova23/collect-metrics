@@ -3,13 +3,14 @@ package service
 import (
 	"errors"
 	"fmt"
-	"github.com/annakonkova23/collect-metrics/internal/model"
-	"go.uber.org/zap"
 	"strconv"
 	"strings"
+
+	"github.com/annakonkova23/collect-metrics/internal/model"
+	"go.uber.org/zap"
 )
 
-var ErrorNotFound = errors.New("Not exists name metric")
+var ErrorNotFound = errors.New("not exists name metric")
 
 type Collector struct {
 	MemStorage *model.MemStorage
