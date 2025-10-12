@@ -2,15 +2,16 @@ package handler
 
 import (
 	"bytes"
-	"fmt"
+	//"fmt"
 	"net/http"
 	"net/http/httptest"
+
 	//"strconv"
 	"testing"
 
-	"github.com/annakonkova23/collect-metrics/internal/model"
-	"github.com/go-resty/resty/v2"
-	"github.com/stretchr/testify/assert"
+	//"github.com/annakonkova23/collect-metrics/internal/model"
+	//"github.com/go-resty/resty/v2"
+	//"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
 
