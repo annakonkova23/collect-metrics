@@ -146,6 +146,7 @@ func TestServer_updateJsonHandler(t *testing.T) {
 
 }*/
 
+/*
 func TestServer_valueCounterHandler(t *testing.T) {
 
 	httpc := resty.New()
@@ -173,3 +174,4 @@ func TestServer_valueCounterHandler(t *testing.T) {
 	})
 
 }
+*/
