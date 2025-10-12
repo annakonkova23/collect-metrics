@@ -91,8 +91,7 @@ func TestCollector_GetMetricJson(t *testing.T) {
 		ID:    "Stack",
 		MType: "gauge",
 	}
-	metricNotExistResult := &model.Metrics{}
-	metricNotExistResultJson, _ := metricNotExistResult.MarshalJSON()
+	metricNotExistResultJson, _ := metricNotExist.MarshalJSON()
 	tests := []struct {
 		name string
 		// Named input parameters for target function.
