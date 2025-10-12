@@ -170,9 +170,12 @@ func (ms *MemStorage) GetMetricValue(name, typeMetric string) (string, bool) {
 func (ms *MemStorage) GetMetric(name, typeMetric string) *Metrics {
 	ms.mx.RLock()
 	defer ms.mx.RUnlock()
-	var delta int64
-	delta = 0
-	metric := &Metrics{Delta: &delta}
+	metric := &Metrics{}
+	if typeMetric == Counter {
+		var delta int64
+		delta = 0
+		metric.Delta = &delta
+	}
 	idx := slices.IndexFunc(ms.metrics, func(m *Metrics) bool {
 		if m.ID == name && m.MType == typeMetric {
 			return true
