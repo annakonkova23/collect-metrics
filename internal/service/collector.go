@@ -58,6 +58,14 @@ func (c *Collector) ParseAndSaveMetricsByParam(name, typeMetric, value string) e
 	return nil
 }
 
+func (c *Collector) SaveMetric(metric *model.Metrics) error {
+	err := c.MemStorage.SetMetricByMetric(metric)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *Collector) GetMetricValue(url string) (string, bool, error) {
 	var typeMetric, nameMetric string
 	parts := strings.Split(url, "/")
@@ -71,14 +79,23 @@ func (c *Collector) GetMetricValue(url string) (string, bool, error) {
 		typeMetric = parts[2]
 		nameMetric = parts[3]
 	}
-	value, ok := c.MemStorage.GetMetric(nameMetric, typeMetric)
+	value, ok := c.GetMetricValueByParam(nameMetric, typeMetric)
 	return value, ok, nil
 
 }
 
-func (c *Collector) GetMetricValueByParam(nameMetric, typeMetric string) (string, bool, error) {
-	value, ok := c.MemStorage.GetMetric(nameMetric, typeMetric)
-	return value, ok, nil
+func (c *Collector) GetMetricValueByParam(nameMetric, typeMetric string) (string, bool) {
+	value, ok := c.MemStorage.GetMetricValue(nameMetric, typeMetric)
+	return value, ok
+
+}
+
+func (c *Collector) GetMetricJson(nameMetric, typeMetric string) string {
+	metric := c.MemStorage.GetMetric(nameMetric, typeMetric)
+	js, _ := metric.MarshalJSON()
+	metricJson := string(js)
+	c.logger.Info("GetMetricJson", zap.String("metricJson", metricJson))
+	return metricJson
 
 }
 

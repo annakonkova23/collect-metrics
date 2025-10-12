@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
@@ -34,15 +33,15 @@ func (s *Sender) SendRequest(b chan bool) {
 	for {
 		metrics := s.runMetric.GetMetrics()
 		var wg sync.WaitGroup
-		for name, value := range metrics {
+		for _, metric := range metrics {
 			wg.Add(1)
 			go func() {
-				valueStr := strconv.FormatFloat(value, 'f', -1, 64)
-				s.logger.Info(fmt.Sprintf("Запрос %s %s", name, valueStr))
-				if err := s.client.Post(s.GetURLForMetric(name, s.runMetric.GetTypeMetric(name), valueStr)); err != nil {
-					s.logger.Info(fmt.Sprintf("Ошибка отправки метрики %s: %v", name, err))
+				body, _ := metric.MarshalJSON()
+				s.logger.Info(fmt.Sprintf("Запрос %s", string(body)))
+				if err := s.client.PostWithBody(s.url, body); err != nil {
+					s.logger.Info(fmt.Sprintf("Ошибка отправки метрики %s: %v", string(body), err))
 				} else {
-					s.logger.Info(fmt.Sprintf("Успешный ответ %s %s", name, valueStr))
+					s.logger.Info("Успешный ответ")
 				}
 				wg.Done()
 			}()

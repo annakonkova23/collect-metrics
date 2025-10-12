@@ -78,6 +78,56 @@ func (ms *MemStorage) SetMetric(name, typeMetr, value string) error {
 	return nil
 }
 
+func (ms *MemStorage) SetMetricByMetric(metric *Metrics) error {
+	if metric.ID == "" {
+		return fmt.Errorf("%s", "Имя метрики не может быть пустым")
+	}
+	if metric.MType != Counter && metric.MType != Gauge {
+		msg := fmt.Sprintf("Некорректный тип метрики[%s]", metric.MType)
+		return fmt.Errorf("%s", msg)
+	}
+	ms.mx.Lock()
+	defer ms.mx.Unlock()
+	idx := slices.IndexFunc(ms.metrics, func(m *Metrics) bool {
+		if m.ID == metric.ID && m.MType == metric.MType {
+			return true
+		}
+		return false
+	})
+	if metric.MType == Counter {
+		if metric.Delta == nil {
+			msg := fmt.Sprintf("Некорректное значение метрики [%s]", metric.ID)
+			return fmt.Errorf("%s", msg)
+		} else {
+			if idx >= 0 {
+				if ms.metrics[idx].Delta != nil {
+					delta := *ms.metrics[idx].Delta + *metric.Delta
+					ms.metrics[idx].Delta = &delta
+				}
+			} else {
+				ms.metrics = append(ms.metrics, metric)
+			}
+
+		}
+	}
+
+	if metric.MType == Gauge {
+		if metric.Value == nil {
+			msg := fmt.Sprintf("Некорректное значение метрики [%s]", metric.ID)
+			return fmt.Errorf("%s", msg)
+		} else {
+			if idx >= 0 {
+				value := *metric.Value
+				ms.metrics[idx].Value = &value
+			} else {
+				ms.metrics = append(ms.metrics, metric)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (ms *MemStorage) String() string {
 	ms.mx.RLock()
 	defer ms.mx.RUnlock()
@@ -85,7 +135,7 @@ func (ms *MemStorage) String() string {
 	return string(js)
 }
 
-func (ms *MemStorage) GetMetric(name, typeMetric string) (string, bool) {
+func (ms *MemStorage) GetMetricValue(name, typeMetric string) (string, bool) {
 	ms.mx.RLock()
 	defer ms.mx.RUnlock()
 	idx := slices.IndexFunc(ms.metrics, func(m *Metrics) bool {
@@ -109,6 +159,22 @@ func (ms *MemStorage) GetMetric(name, typeMetric string) (string, bool) {
 
 	}
 	return "", false
+}
+
+func (ms *MemStorage) GetMetric(name, typeMetric string) *Metrics {
+	ms.mx.RLock()
+	defer ms.mx.RUnlock()
+	metric := &Metrics{}
+	idx := slices.IndexFunc(ms.metrics, func(m *Metrics) bool {
+		if m.ID == name && m.MType == typeMetric {
+			return true
+		}
+		return false
+	})
+	if idx >= 0 {
+		metric = ms.metrics[idx].Copy()
+	}
+	return metric
 }
 
 func (ms *MemStorage) GetMetricAllValues() []*Metrics {
