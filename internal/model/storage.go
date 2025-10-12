@@ -170,7 +170,7 @@ func (ms *MemStorage) GetMetricValue(name, typeMetric string) (string, bool) {
 func (ms *MemStorage) GetMetric(name, typeMetric string) *Metrics {
 	ms.mx.RLock()
 	defer ms.mx.RUnlock()
-	metric := &Metrics{}
+	metric := &Metrics{ID: name, MType: typeMetric}
 	if typeMetric == Counter {
 		var delta int64
 		delta = 0

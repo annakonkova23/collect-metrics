@@ -14,7 +14,7 @@ func TestMemStorage_GetMetric(t *testing.T) {
 		MType: "gauge",
 		Value: &value,
 	}
-	metricNotExistResult := &model.Metrics{}
+	metricNotExistResult := &model.Metrics{ID: "Stack", MType: "gauge"}
 	tests := []struct {
 		name       string // description of this test case
 		nameMetric string
