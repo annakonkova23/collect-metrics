@@ -47,11 +47,13 @@ func (s *Server) updateJsonHandler(w http.ResponseWriter, r *http.Request) {
 	s.logger.Debug("updateJsonHandler BODY:" + string(bodyBytes))
 	metric := &model.Metrics{}
 	metric.UnmarshalJSON(bodyBytes)
-	err = s.Collector.SaveMetric(metric)
+	metric, err = s.Collector.SaveMetric(metric)
 	if err != nil {
 		s.logger.Error(err.Error(), zap.String("Body", string(bodyBytes)))
 	}
 	w.Header().Set("Content-Type", "application/json")
+	value, _ := metric.MarshalJSON()
+	w.Write(value)
 	w.WriteHeader(http.StatusOK)
 }
 

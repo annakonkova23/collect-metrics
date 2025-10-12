@@ -2,15 +2,15 @@ package handler
 
 import (
 	"bytes"
-	//"fmt"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	//"strconv"
 	"testing"
 
-	//"github.com/annakonkova23/collect-metrics/internal/model"
-	//"github.com/go-resty/resty/v2"
-	//"github.com/stretchr/testify/assert"
+	"github.com/annakonkova23/collect-metrics/internal/model"
+	"github.com/go-resty/resty/v2"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
 
@@ -74,7 +74,7 @@ func TestServer_updateJsonHandler(t *testing.T) {
 	}
 }
 
-/*func TestServer_valueJsonHandler(t *testing.T) {
+func TestServer_valueJsonHandler(t *testing.T) {
 
 	httpc := resty.New()
 
@@ -136,6 +136,7 @@ func TestServer_updateJsonHandler(t *testing.T) {
 		fmt.Println(tt.name)
 		fmt.Println(result.MType)
 		fmt.Println(result.Value)
+		fmt.Println(result.Delta)
 		assert.True(t, ((result.MType == "gauge" && result.Value != nil) || (result.MType == "counter" && result.Delta != nil)),
 			"Получен не однозначный результат (тип метода не соответствует возвращаемому значению) '%q %s %s'", req.Method, req.URL, tt.name)
 
@@ -144,7 +145,7 @@ func TestServer_updateJsonHandler(t *testing.T) {
 
 	}
 
-}*/
+}
 
 /*
 func TestServer_valueCounterHandler(t *testing.T) {

@@ -78,6 +78,7 @@ var allMetrics = []RMetric{Alloc,
 
 type RuntimeMetric struct {
 	Metrics      map[string]float64
+	mx           sync.RWMutex
 	pollInterval int
 	logger       *zap.Logger
 }
@@ -199,12 +200,14 @@ func (rm *RuntimeMetric) UpdateMetric(chanel chan bool) {
 			rm.logger.Info("Метрики первый раз рассчитались")
 			close(chanel)
 		})
+		rm.mx.Lock()
 		for k, v := range valMetric {
 			rm.Metrics[k] = v
 		}
 		rm.logger.Info("Метрики рассчитались", zap.Int("cnt", cnt))
 		cnt++
 		rm.Metrics[nameCounter] = rm.Metrics[nameCounter] + 1
+		rm.mx.Unlock()
 		time.Sleep(time.Duration(rm.pollInterval) * time.Second)
 	}
 }
@@ -218,11 +221,15 @@ func (rm *RuntimeMetric) GetTypeMetric(name string) string {
 }
 
 func (rm *RuntimeMetric) GetMetricsValue() map[string]float64 {
+	rm.mx.RLock()
+	defer rm.mx.RUnlock()
 	return rm.Metrics
 
 }
 
 func (rm *RuntimeMetric) GetMetrics() []*Metrics {
+	rm.mx.RLock()
+	defer rm.mx.RUnlock()
 	mcs := make([]*Metrics, len(rm.Metrics))
 	i := 0
 	for k, v := range rm.Metrics {

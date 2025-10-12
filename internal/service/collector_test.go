@@ -111,7 +111,7 @@ func TestCollector_GetMetricJson(t *testing.T) {
 		},
 	}
 	c := service.NewCollector(logger)
-	_ = c.SaveMetric(metricExistResult)
+	_, _ = c.SaveMetric(metricExistResult)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := c.GetMetricJson(tt.metric.ID, tt.metric.MType)

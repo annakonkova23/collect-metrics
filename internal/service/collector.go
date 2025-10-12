@@ -58,12 +58,12 @@ func (c *Collector) ParseAndSaveMetricsByParam(name, typeMetric, value string) e
 	return nil
 }
 
-func (c *Collector) SaveMetric(metric *model.Metrics) error {
-	err := c.MemStorage.SetMetricByMetric(metric)
+func (c *Collector) SaveMetric(metric *model.Metrics) (*model.Metrics, error) {
+	metric, err := c.MemStorage.SetMetricByMetric(metric)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return metric, nil
 }
 
 func (c *Collector) GetMetricValue(url string) (string, bool, error) {
