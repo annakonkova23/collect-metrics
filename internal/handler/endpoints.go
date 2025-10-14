@@ -33,7 +33,7 @@ func (s *Server) updateHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) updateJsonHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) updateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") != "application/json" {
 		s.logger.Error("Неверный Content-Type")
 		http.Error(w, "Неверный Content-Type", http.StatusBadRequest)
@@ -122,7 +122,7 @@ func GenerateHTMLTable(data []*service.Metric, w http.ResponseWriter) {
 	}
 }
 
-func (s *Server) valueJsonHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) valueJSONHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") != "application/json" {
 		s.logger.Error("Неверный Content-Type")
 		http.Error(w, "Неверный Content-Type", http.StatusBadRequest)
@@ -133,10 +133,10 @@ func (s *Server) valueJsonHandler(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 	defer r.Body.Close()
-	s.logger.Debug("valueJsonHandler BODY:" + string(bodyBytes))
+	s.logger.Debug("valueJSONHandler BODY:" + string(bodyBytes))
 	metric := &model.Metrics{}
 	metric.UnmarshalJSON(bodyBytes)
-	value, err := s.Collector.GetMetricJson(metric.ID, metric.MType)
+	value, err := s.Collector.GetMetricJSON(metric.ID, metric.MType)
 	if err != nil {
 		if err == service.ErrorNotFound {
 			s.logger.Debug("Передаём ошибку 404")

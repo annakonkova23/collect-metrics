@@ -36,11 +36,11 @@ func TestServer_updateJsonHandler(t *testing.T) {
 		"delta": 17
 		} 
 	`
-	reqPositiveGauge, err := http.NewRequest("POST", "/update/", bytes.NewBuffer([]byte(jsonPositiveGauge)))
+	reqPositiveGauge, _ := http.NewRequest("POST", "/update/", bytes.NewBuffer([]byte(jsonPositiveGauge)))
 	reqPositiveGauge.Header.Set("Content-Type", "application/json")
-	reqPositiveCounter, err := http.NewRequest("POST", "/update/", bytes.NewBuffer([]byte(jsonPositiveCounter)))
+	reqPositiveCounter, _ := http.NewRequest("POST", "/update/", bytes.NewBuffer([]byte(jsonPositiveCounter)))
 	reqPositiveCounter.Header.Set("Content-Type", "application/json")
-	reqNotContentType, err := http.NewRequest("POST", "/update/", bytes.NewBuffer([]byte(jsonPositiveCounter)))
+	reqNotContentType, _ := http.NewRequest("POST", "/update/", bytes.NewBuffer([]byte(jsonPositiveCounter)))
 	tests := []struct {
 		name   string // description of this test case
 		w      *httptest.ResponseRecorder
@@ -69,7 +69,7 @@ func TestServer_updateJsonHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := NewServer(url, logger)
-			s.updateJsonHandler(tt.w, tt.r)
+			s.updateJSONHandler(tt.w, tt.r)
 
 		})
 	}

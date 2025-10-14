@@ -28,10 +28,10 @@ func NewServer(url string, logger *zap.Logger) *Server {
 
 func (s *Server) StartAndListen() error {
 	s.router.Post("/update/{type}/{name}/{value}", s.WithLogging(http.HandlerFunc(s.updateHandler)))
-	s.router.Post("/update/", s.WithLogging(http.HandlerFunc(s.updateJsonHandler)))
+	s.router.Post("/update/", s.WithLogging(http.HandlerFunc(s.updateJSONHandler)))
 	s.router.Get("/value/{type}/{name}", s.WithLogging(http.HandlerFunc(s.valueHandler)))
 	s.router.Get("/", s.WithLogging(http.HandlerFunc(s.allValuesHandler)))
-	s.router.Post("/value/", s.WithLogging(http.HandlerFunc(s.valueJsonHandler)))
+	s.router.Post("/value/", s.WithLogging(http.HandlerFunc(s.valueJSONHandler)))
 	if err := http.ListenAndServe(s.url, s.router); err != nil {
 		return err
 	}

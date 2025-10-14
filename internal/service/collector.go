@@ -90,15 +90,15 @@ func (c *Collector) GetMetricValueByParam(nameMetric, typeMetric string) (string
 
 }
 
-func (c *Collector) GetMetricJson(nameMetric, typeMetric string) (string, error) {
+func (c *Collector) GetMetricJSON(nameMetric, typeMetric string) (string, error) {
 	metric, ok := c.MemStorage.GetMetric(nameMetric, typeMetric)
 	if !ok {
 		return "", ErrorNotFound
 	}
 	js, _ := metric.MarshalJSON()
-	metricJson := string(js)
-	c.logger.Info("GetMetricJson", zap.String("metricJson", metricJson))
-	return metricJson, nil
+	metricJSON := string(js)
+	c.logger.Info("GetMetricJson", zap.String("metricJson", metricJSON))
+	return metricJSON, nil
 
 }
 

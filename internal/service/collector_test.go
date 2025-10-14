@@ -72,7 +72,6 @@ func TestCollector_ParseAndSaveMetricsByURL(t *testing.T) {
 func TestCollector_GetMetricJson(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		// вызываем панику, если ошибка
 		panic(err)
 	}
 	defer logger.Sync()
@@ -86,14 +85,13 @@ func TestCollector_GetMetricJson(t *testing.T) {
 		MType: "gauge",
 		Value: &value,
 	}
-	metricExistResultJson, _ := metricExistResult.MarshalJSON()
+	metricExistResultJSON, _ := metricExistResult.MarshalJSON()
 	metricNotExist := &model.Metrics{
 		ID:    "Stack",
 		MType: "gauge",
 	}
 	tests := []struct {
-		name string
-		// Named input parameters for target function.
+		name   string
 		metric *model.Metrics
 		want   string
 		err    error
@@ -101,7 +99,7 @@ func TestCollector_GetMetricJson(t *testing.T) {
 		{
 			name:   "ExistMetric",
 			metric: metricExist,
-			want:   string(metricExistResultJson),
+			want:   string(metricExistResultJSON),
 			err:    nil,
 		},
 		{
@@ -115,7 +113,7 @@ func TestCollector_GetMetricJson(t *testing.T) {
 	_, _ = c.SaveMetric(metricExistResult)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := c.GetMetricJson(tt.metric.ID, tt.metric.MType)
+			got, err := c.GetMetricJSON(tt.metric.ID, tt.metric.MType)
 			assert.Equal(t, tt.err, err)
 			assert.Equal(t, tt.want, got)
 
