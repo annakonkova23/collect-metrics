@@ -167,15 +167,9 @@ func (ms *MemStorage) GetMetricValue(name, typeMetric string) (string, bool) {
 	return "", false
 }
 
-func (ms *MemStorage) GetMetric(name, typeMetric string) *Metrics {
+func (ms *MemStorage) GetMetric(name, typeMetric string) (*Metrics, bool) {
 	ms.mx.RLock()
 	defer ms.mx.RUnlock()
-	metric := &Metrics{ID: name, MType: typeMetric}
-	if typeMetric == Counter {
-		var delta int64
-		delta = 0
-		metric.Delta = &delta
-	}
 	idx := slices.IndexFunc(ms.metrics, func(m *Metrics) bool {
 		if m.ID == name && m.MType == typeMetric {
 			return true
@@ -183,9 +177,10 @@ func (ms *MemStorage) GetMetric(name, typeMetric string) *Metrics {
 		return false
 	})
 	if idx >= 0 {
-		metric = ms.metrics[idx].Copy()
+
+		return ms.metrics[idx].Copy(), true
 	}
-	return metric
+	return nil, false
 }
 
 func (ms *MemStorage) GetMetricAllValues() []*Metrics {

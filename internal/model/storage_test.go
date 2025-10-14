@@ -14,24 +14,26 @@ func TestMemStorage_GetMetric(t *testing.T) {
 		MType: "gauge",
 		Value: &value,
 	}
-	metricNotExistResult := &model.Metrics{ID: "Stack", MType: "gauge"}
 	tests := []struct {
 		name       string // description of this test case
 		nameMetric string
 		typeMetric string
 		want       *model.Metrics
+		ok         bool
 	}{
 		{
 			name:       "ExistMetric",
 			nameMetric: "StackSys",
 			typeMetric: "gauge",
 			want:       metricExistResult,
+			ok:         true,
 		},
 		{
 			name:       "NotExistMetric",
 			nameMetric: "Stack",
 			typeMetric: "gauge",
-			want:       metricNotExistResult,
+			want:       nil,
+			ok:         false,
 		},
 	}
 	ms := model.NewMemStorage()
@@ -39,9 +41,9 @@ func TestMemStorage_GetMetric(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got := ms.GetMetric(tt.nameMetric, tt.typeMetric)
+			got, ok := ms.GetMetric(tt.nameMetric, tt.typeMetric)
 			assert.Equal(t, tt.want, got)
-
+			assert.Equal(t, tt.ok, ok)
 		})
 	}
 }

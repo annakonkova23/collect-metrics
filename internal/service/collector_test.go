@@ -91,29 +91,32 @@ func TestCollector_GetMetricJson(t *testing.T) {
 		ID:    "Stack",
 		MType: "gauge",
 	}
-	metricNotExistResultJson, _ := metricNotExist.MarshalJSON()
 	tests := []struct {
 		name string
 		// Named input parameters for target function.
 		metric *model.Metrics
 		want   string
+		err    error
 	}{
 		{
 			name:   "ExistMetric",
 			metric: metricExist,
 			want:   string(metricExistResultJson),
+			err:    nil,
 		},
 		{
 			name:   "NotExistMetric",
 			metric: metricNotExist,
-			want:   string(metricNotExistResultJson),
+			want:   "",
+			err:    service.ErrorNotFound,
 		},
 	}
 	c := service.NewCollector(logger)
 	_, _ = c.SaveMetric(metricExistResult)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := c.GetMetricJson(tt.metric.ID, tt.metric.MType)
+			got, err := c.GetMetricJson(tt.metric.ID, tt.metric.MType)
+			assert.Equal(t, tt.err, err)
 			assert.Equal(t, tt.want, got)
 
 		})

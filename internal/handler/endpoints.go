@@ -53,8 +53,9 @@ func (s *Server) updateJsonHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	value, _ := metric.MarshalJSON()
-	w.Write(value)
 	w.WriteHeader(http.StatusOK)
+	w.Write(value)
+
 }
 
 func (s *Server) valueHandler(w http.ResponseWriter, r *http.Request) {
@@ -67,8 +68,9 @@ func (s *Server) valueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(value))
 	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(value))
+
 }
 
 func (s *Server) allValuesHandler(w http.ResponseWriter, r *http.Request) {
@@ -134,9 +136,20 @@ func (s *Server) valueJsonHandler(w http.ResponseWriter, r *http.Request) {
 	s.logger.Debug("valueJsonHandler BODY:" + string(bodyBytes))
 	metric := &model.Metrics{}
 	metric.UnmarshalJSON(bodyBytes)
-	value := s.Collector.GetMetricJson(metric.ID, metric.MType)
+	value, err := s.Collector.GetMetricJson(metric.ID, metric.MType)
+	if err != nil {
+		if err == service.ErrorNotFound {
+			s.logger.Debug("Передаём ошибку 404")
+			http.Error(w, service.ErrorNotFound.Error(), http.StatusNotFound)
+			return
+		} else {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Println("body:", value)
-	w.Write([]byte(value))
 	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(value))
+
 }

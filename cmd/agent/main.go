@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	defaultReportInterval = 10
+	defaultReportInterval = 5
 	defaultHost           = "localhost:8080"
 	defaultPollInterval   = 2
 	env
@@ -50,7 +50,6 @@ func main() {
 	URL := ""
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		// вызываем панику, если ошибка
 		panic(err)
 	}
 	defer logger.Sync()
@@ -78,5 +77,3 @@ func main() {
 	sender.Start()
 
 }
-
-///github.com/annakonkova23/collect-metrics
