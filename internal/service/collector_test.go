@@ -1,7 +1,6 @@
 package service_test
 
 import (
-	//"fmt"
 	"testing"
 
 	"github.com/annakonkova23/collect-metrics/internal/model"
@@ -46,7 +45,6 @@ func TestCollector_ParseAndSaveMetricsByURL(t *testing.T) {
 	}
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		// вызываем панику, если ошибка
 		panic(err)
 	}
 	defer logger.Sync()

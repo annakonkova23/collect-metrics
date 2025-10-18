@@ -9,6 +9,7 @@ import (
 	"github.com/annakonkova23/collect-metrics/internal/model"
 	"github.com/annakonkova23/collect-metrics/internal/service"
 	"github.com/go-chi/chi/v5"
+
 	"go.uber.org/zap"
 )
 
@@ -83,6 +84,7 @@ func (s *Server) allValuesHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Нет значений", http.StatusBadRequest)
 		return
 	}
+
 	GenerateHTMLTable(values, w)
 }
 
@@ -117,6 +119,7 @@ func GenerateHTMLTable(data []*service.Metric, w http.ResponseWriter) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, "Ошибка при рендеринге шаблона", http.StatusInternalServerError)
 	}
@@ -148,7 +151,6 @@ func (s *Server) valueJSONHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
-	fmt.Println("body:", value)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(value))
 

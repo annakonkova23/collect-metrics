@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/annakonkova23/collect-metrics/internal/handler"
 	"go.uber.org/zap"
 	"os"
@@ -15,7 +14,6 @@ const (
 func main() {
 	host := flag.String("a", defaultHost, "Хост")
 	flag.Parse()
-	fmt.Println(os.Getenv("ADDRESS"))
 	if envHost := os.Getenv("ADDRESS"); envHost != "" {
 		host = &envHost
 	}
@@ -24,7 +22,6 @@ func main() {
 	}
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		// вызываем панику, если ошибка
 		panic(err)
 	}
 	defer logger.Sync()

@@ -1,11 +1,11 @@
 package handler
 
 import (
+	"net/http"
+
 	"github.com/annakonkova23/collect-metrics/internal/service"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
-	"net/http"
-	"time"
 )
 
 type Server struct {
@@ -36,31 +36,4 @@ func (s *Server) StartAndListen() error {
 		return err
 	}
 	return nil
-}
-
-// WithLogging добавляет дополнительный код для регистрации сведений о запросе
-// и возвращает новый http.Handler.
-func (s *Server) WithLogging(h http.Handler) http.HandlerFunc {
-	logFn := func(w http.ResponseWriter, r *http.Request) {
-
-		start := time.Now()
-		// эндпоинт
-		uri := r.RequestURI
-		// метод запроса
-		method := r.Method
-
-		h.ServeHTTP(w, r) // обслуживание оригинального запроса
-
-		duration := time.Since(start)
-
-		// отправляем сведения о запросе в zap
-		s.Sugar.Infoln(
-			"uri", uri,
-			"method", method,
-			"duration", duration,
-		)
-
-	}
-	// возвращаем функционально расширенный хендлер
-	return logFn
 }
