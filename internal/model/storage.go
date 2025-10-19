@@ -191,3 +191,9 @@ func (ms *MemStorage) GetMetricAllValues() []*Metrics {
 	}
 	return metrics
 }
+
+func (ms *MemStorage) InitMetrics(mts []*Metrics) {
+	ms.mx.RLock()
+	defer ms.mx.RUnlock()
+	ms.metrics = mts
+}

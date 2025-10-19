@@ -3,6 +3,7 @@ package service_test
 import (
 	"testing"
 
+	"github.com/annakonkova23/collect-metrics/internal/config"
 	"github.com/annakonkova23/collect-metrics/internal/model"
 	"github.com/annakonkova23/collect-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
@@ -48,9 +49,13 @@ func TestCollector_ParseAndSaveMetricsByURL(t *testing.T) {
 		panic(err)
 	}
 	defer logger.Sync()
+	cfg := config.NewServerOptions()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := service.NewCollector(logger)
+			c, err := service.NewCollector(cfg, logger)
+			if err != nil {
+				t.Errorf("Ошибка при создании сервиса: %v", err)
+			}
 			gotErr := c.ParseAndSaveMetricsByURL(tt.url)
 			if gotErr != nil {
 				if !tt.wantErr {
@@ -107,7 +112,11 @@ func TestCollector_GetMetricJson(t *testing.T) {
 			err:    service.ErrorNotFound,
 		},
 	}
-	c := service.NewCollector(logger)
+	cfg := config.NewServerOptions()
+	c, err := service.NewCollector(cfg, logger)
+	if err != nil {
+		t.Errorf("Ошибка при создании сервиса: %v", err)
+	}
 	_, _ = c.SaveMetric(metricExistResult)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

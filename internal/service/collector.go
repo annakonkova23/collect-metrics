@@ -3,18 +3,23 @@ package service
 import (
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
-
+	"github.com/annakonkova23/collect-metrics/internal/config"
 	"github.com/annakonkova23/collect-metrics/internal/model"
 	"go.uber.org/zap"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 )
 
 var ErrorNotFound = errors.New("not exists name metric")
 
 type Collector struct {
-	MemStorage *model.MemStorage
-	logger     *zap.Logger
+	MemStorage      *model.MemStorage
+	logger          *zap.Logger
+	FileStoragePath string
+	StoreInterval   int
+	mu              sync.Mutex
 }
 
 type Metric struct {
@@ -23,8 +28,25 @@ type Metric struct {
 	Value string
 }
 
-func NewCollector(logger *zap.Logger) *Collector {
-	return &Collector{MemStorage: model.NewMemStorage(), logger: logger}
+func NewCollector(cfg *config.ServerOptions, logger *zap.Logger) (*Collector, error) {
+	clr := &Collector{
+		FileStoragePath: cfg.FileStoragePath,
+		StoreInterval:   cfg.StoreInterval,
+		logger:          logger,
+		MemStorage:      model.NewMemStorage(),
+	}
+	if cfg.Restore {
+		clr.logger.Info("Инициализация метрик", zap.Bool("Restore", cfg.Restore))
+		metrics, err := clr.LoadFromFile()
+		if err != nil {
+			return nil, err
+		}
+		clr.MemStorage.InitMetrics(metrics)
+	}
+	if cfg.StoreInterval > 0 {
+		go clr.ProcessUploadFile()
+	}
+	return clr, nil
 }
 
 func (c *Collector) ParseAndSaveMetricsByURL(url string) error {
@@ -47,6 +69,15 @@ func (c *Collector) ParseAndSaveMetricsByURL(url string) error {
 	if err != nil {
 		return err
 	}
+	if c.StoreInterval == 0 {
+		err := c.SaveToFile()
+		if err != nil {
+			c.logger.Error("Ошибка сохранения файла", zap.Error(err),
+				zap.String("nameMetric", nameMetric),
+				zap.String("typeMetric", typeMetric),
+				zap.String("value", value))
+		}
+	}
 	return nil
 }
 
@@ -55,6 +86,15 @@ func (c *Collector) ParseAndSaveMetricsByParam(name, typeMetric, value string) e
 	if err != nil {
 		return err
 	}
+	if c.StoreInterval == 0 {
+		err := c.SaveToFile()
+		if err != nil {
+			c.logger.Error("Ошибка сохранения файла", zap.Error(err),
+				zap.String("nameMetric", name),
+				zap.String("typeMetric", typeMetric),
+				zap.String("value", value))
+		}
+	}
 	return nil
 }
 
@@ -62,6 +102,17 @@ func (c *Collector) SaveMetric(metric *model.Metrics) (*model.Metrics, error) {
 	metric, err := c.MemStorage.SetMetricByMetric(metric)
 	if err != nil {
 		return nil, err
+	}
+	if c.StoreInterval == 0 {
+		err := c.SaveToFile()
+		if err != nil {
+			c.logger.Error("Ошибка сохранения файла", zap.Error(err),
+				zap.String("nameMetric", metric.ID),
+				zap.String("typeMetric", metric.MType),
+				zap.Float64("value", *metric.Value),
+			)
+
+		}
 	}
 	return metric, nil
 }
@@ -122,4 +173,15 @@ func (c *Collector) GetMetricAllValues() []*Metric {
 	}
 	return metricResult
 
+}
+
+func (c *Collector) ProcessUploadFile() {
+	c.logger.Info("Запуск процесса сохранения файла", zap.Int("StoreInterval", c.StoreInterval))
+	for {
+		err := c.SaveToFile()
+		if err != nil {
+			c.logger.Error("Ошибка сохранения файла", zap.Error(err))
+		}
+		time.Sleep(time.Duration(c.StoreInterval) * time.Second)
+	}
 }

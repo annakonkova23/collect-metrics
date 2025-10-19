@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+
 	//"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	//"github.com/annakonkova23/collect-metrics/internal/model"
 	//"github.com/go-resty/resty/v2"
 	//"github.com/stretchr/testify/assert"
+	"github.com/annakonkova23/collect-metrics/internal/config"
 	"go.uber.org/zap"
 )
 
@@ -23,7 +25,7 @@ func TestServer_updateJsonHandler(t *testing.T) {
 		panic(err)
 	}
 	defer logger.Sync()
-	url := "localhost:8080"
+	cfg := config.NewServerOptions()
 	jsonPositiveGauge := `{
 		"id": "TestGauge",
 		"type": "gauge",
@@ -66,9 +68,14 @@ func TestServer_updateJsonHandler(t *testing.T) {
 			result: http.StatusBadRequest,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewServer(url, logger)
+			s, err := NewServer(cfg, logger)
+			if err != nil {
+				t.Errorf("Error on creating server: %v", err)
+			}
+			tt.r.Header.Set("Content-Type", "application/json")
 			s.updateJSONHandler(tt.w, tt.r)
 
 		})
@@ -148,7 +155,6 @@ func TestServer_valueJsonHandler(t *testing.T) {
 	}
 
 }*/
-
 /*
 func TestServer_valueCounterHandler(t *testing.T) {
 
@@ -159,21 +165,33 @@ func TestServer_valueCounterHandler(t *testing.T) {
 	t.Run("update", func(t *testing.T) {
 		//value1, value2 := 5, 4
 		req := httpc.R().
+			SetHeader("Accept-Encoding", "gzip").
 			SetHeader("Content-Type", "application/json")
 
 		// Запросим предыдущее значение с сервера, на случай если оно там уже есть.
 		var result model.Metrics
+		val := float64(66)
 		_, _ = req.
 			SetBody(&model.Metrics{
 				ID:    id,
-				MType: "counter",
+				MType: "gauge",
+				Value: &val,
+			}).
+			SetResult(&result).
+			Post("http://localhost:8080/update/")
+
+		res, _ := req.
+			SetBody(&model.Metrics{
+				ID:    id,
+				MType: "gauge",
 			}).
 			SetResult(&result).
 			Post("http://localhost:8080/value/")
 
-		assert.NotNil(t, result.Delta,
-			"Получено не инициализированное значение Delta '%q %s'", req.Method, req.URL)
+		fmt.Printf("Заголовок [%s] \n", res.Header().Get("Content-Encoding"))
 
+		assert.Containsf(t, res.Header().Get("Content-Encoding"), "gzip",
+			"Заголовок ответа Content-Encoding содержит несоответствующее значение")
 	})
 
 }

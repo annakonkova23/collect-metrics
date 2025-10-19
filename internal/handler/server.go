@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/annakonkova23/collect-metrics/internal/config"
 	"github.com/annakonkova23/collect-metrics/internal/service"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -16,14 +17,18 @@ type Server struct {
 	logger    *zap.Logger
 }
 
-func NewServer(url string, logger *zap.Logger) *Server {
+func NewServer(cfg *config.ServerOptions, logger *zap.Logger) (*Server, error) {
+	collector, err := service.NewCollector(cfg, logger)
+	if err != nil {
+		return nil, err
+	}
 	return &Server{
 		router:    chi.NewRouter(),
-		url:       url,
-		Collector: service.NewCollector(logger),
+		url:       cfg.Host,
+		Collector: collector,
 		Sugar:     logger.Sugar(),
 		logger:    logger,
-	}
+	}, nil
 }
 
 func (s *Server) StartAndListen() error {
