@@ -112,7 +112,7 @@ func TestCollector_GetMetricJson(t *testing.T) {
 			err:    service.ErrorNotFound,
 		},
 	}
-	cfg := config.NewServerOptions()
+	cfg := &config.ServerOptions{}
 	c, err := service.NewCollector(cfg, logger)
 	if err != nil {
 		t.Errorf("Ошибка при создании сервиса: %v", err)
