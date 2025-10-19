@@ -45,7 +45,7 @@ func (crw *CustomResponseWriter) Write(b []byte) (int, error) {
 	return crw.buf.Write(b)
 }
 
-func (s *Server) WithLogging(h http.Handler) http.HandlerFunc {
+func (s *Server) WithLoggingAndCompress(h http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		uri := r.RequestURI

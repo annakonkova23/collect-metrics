@@ -37,10 +37,7 @@ func NewCollector(cfg *config.ServerOptions, logger *zap.Logger) (*Collector, er
 	}
 	if cfg.Restore {
 		clr.logger.Info("Инициализация метрик", zap.Bool("Restore", cfg.Restore))
-		metrics, err := clr.LoadFromFile()
-		if err != nil {
-			return nil, err
-		}
+		metrics := clr.LoadFromFile()
 		clr.MemStorage.InitMetrics(metrics)
 	}
 	if cfg.StoreInterval > 0 {

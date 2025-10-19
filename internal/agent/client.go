@@ -81,11 +81,11 @@ func (c *Client) PostWithBody(url string, body []byte) error {
 }
 
 func (c *Client) WithLoggingResponse(client *resty.Client, response *resty.Response) error {
-	/*c.Sugar.Infoln(
+	c.Sugar.Infoln(
 		"status", response.Status(), // получаем перехваченный код статуса ответа
 		"size", response.Size(), // получаем перехваченный размер ответа
 		"content-type", response.Header().Get("Content-Type"),
 		"content-encoding", response.Header().Get("Content-Encoding"),
-	)*/
+	)
 	return nil
 }

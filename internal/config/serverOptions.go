@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"strconv"
 )
@@ -35,7 +34,6 @@ func NewServerOptions() *ServerOptions {
 			storeInterval = &storeIntervalInt
 		}
 	}
-	fmt.Println("os env:", os.Getenv("RESTORE"))
 	if envRestore := os.Getenv("RESTORE"); envRestore != "" {
 		if restoreBool, err := strconv.ParseBool(envRestore); err == nil {
 			restore = &restoreBool
@@ -45,10 +43,6 @@ func NewServerOptions() *ServerOptions {
 	if envFileStoragePath := os.Getenv("FILE_STORAGE_PATH"); envFileStoragePath != "" {
 		fileStoragePath = &envFileStoragePath
 	}
-	fmt.Println("host:", *host)
-	fmt.Println("StoreInterval:", *storeInterval)
-	fmt.Println("restore:", *restore)
-	fmt.Println("FileStoragePath:", *fileStoragePath)
 	return &ServerOptions{
 		Host:            *host,
 		StoreInterval:   *storeInterval,

@@ -10,23 +10,22 @@ import (
 
 func main() {
 	options := config.NewServerOptions()
+
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		fmt.Println(err)
 		panic(err)
 	}
 	defer logger.Sync()
 	h, err := handler.NewServer(options, logger)
 	if err != nil {
-		logger.Error(err.Error())
 		panic(err)
 	}
+	logger.Info("Опции", zap.String("options", fmt.Sprintf("%+v", options)))
 	logger.Info("Сервер создан",
-		zap.String("host", options.Host),
+		zap.String("host", "localhost:8080"),
 	)
 	err = h.StartAndListen()
 	if err != nil {
-		logger.Error(err.Error())
 		panic(err)
 	}
 }

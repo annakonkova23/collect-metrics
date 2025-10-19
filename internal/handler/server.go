@@ -32,11 +32,11 @@ func NewServer(cfg *config.ServerOptions, logger *zap.Logger) (*Server, error) {
 }
 
 func (s *Server) StartAndListen() error {
-	s.router.Post("/update/{type}/{name}/{value}", s.WithLogging(http.HandlerFunc(s.updateHandler)))
-	s.router.Post("/update/", s.WithLogging(http.HandlerFunc(s.updateJSONHandler)))
-	s.router.Get("/value/{type}/{name}", s.WithLogging(http.HandlerFunc(s.valueHandler)))
-	s.router.Get("/", s.WithLogging(http.HandlerFunc(s.allValuesHandler)))
-	s.router.Post("/value/", s.WithLogging(http.HandlerFunc(s.valueJSONHandler)))
+	s.router.Post("/update/{type}/{name}/{value}", s.WithLoggingAndCompress(http.HandlerFunc(s.updateHandler)))
+	s.router.Post("/update/", s.WithLoggingAndCompress(http.HandlerFunc(s.updateJSONHandler)))
+	s.router.Get("/value/{type}/{name}", s.WithLoggingAndCompress(http.HandlerFunc(s.valueHandler)))
+	s.router.Get("/", s.WithLoggingAndCompress(http.HandlerFunc(s.allValuesHandler)))
+	s.router.Post("/value/", s.WithLoggingAndCompress(http.HandlerFunc(s.valueJSONHandler)))
 	if err := http.ListenAndServe(s.url, s.router); err != nil {
 		return err
 	}

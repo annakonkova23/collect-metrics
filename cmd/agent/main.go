@@ -13,7 +13,6 @@ const (
 	defaultReportInterval = 5
 	defaultHost           = "localhost:8080"
 	defaultPollInterval   = 2
-	env
 )
 
 func main() {
