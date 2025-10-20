@@ -7,7 +7,6 @@ import (
 	"github.com/annakonkova23/collect-metrics/internal/model"
 	"go.uber.org/zap"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -46,57 +45,34 @@ func NewCollector(cfg *config.ServerOptions, logger *zap.Logger) (*Collector, er
 	return clr, nil
 }
 
-func (c *Collector) ParseAndSaveMetricsByURL(url string) error {
-	var typeMetric, nameMetric, value string
-	parts := strings.Split(url, "/")
-	if len(parts) < 2 || parts[1] != "update" {
-		return fmt.Errorf("%s", "Невалидный Url")
+func (c *Collector) SaveMetricsByParam(name, typeMetric, value string) error {
+	metric := &model.Metrics{
+		ID:    name,
+		MType: typeMetric,
 	}
-	if len(parts) == 3 || (len(parts) > 3 && parts[3] == "") {
-		return fmt.Errorf("%s", ErrorNotFound)
-	}
-	if len(parts) >= 4 {
-		typeMetric = parts[2]
-		nameMetric = parts[3]
-		if len(parts) >= 5 {
-			value = parts[4]
+	if typeMetric == model.Counter {
+		if delta, err := strconv.ParseInt(value, 10, 64); err == nil {
+			metric.Delta = &delta
+		} else {
+			return fmt.Errorf("неверный формат значения для счетчика: %s", value)
 		}
 	}
-	err := c.MemStorage.SetMetric(nameMetric, typeMetric, value)
+	if typeMetric == model.Gauge {
+		if valueFloat, err := strconv.ParseFloat(value, 64); err == nil {
+			metric.Value = &valueFloat
+		} else {
+			return fmt.Errorf("неверный формат значения для float64: %s", value)
+		}
+	}
+	_, err := c.SaveMetric(metric)
 	if err != nil {
 		return err
-	}
-	if c.StoreInterval == 0 {
-		err := c.SaveToFile()
-		if err != nil {
-			c.logger.Error("Ошибка сохранения файла", zap.Error(err),
-				zap.String("nameMetric", nameMetric),
-				zap.String("typeMetric", typeMetric),
-				zap.String("value", value))
-		}
-	}
-	return nil
-}
-
-func (c *Collector) ParseAndSaveMetricsByParam(name, typeMetric, value string) error {
-	err := c.MemStorage.SetMetric(name, typeMetric, value)
-	if err != nil {
-		return err
-	}
-	if c.StoreInterval == 0 {
-		err := c.SaveToFile()
-		if err != nil {
-			c.logger.Error("Ошибка сохранения файла", zap.Error(err),
-				zap.String("nameMetric", name),
-				zap.String("typeMetric", typeMetric),
-				zap.String("value", value))
-		}
 	}
 	return nil
 }
 
 func (c *Collector) SaveMetric(metric *model.Metrics) (*model.Metrics, error) {
-	metric, err := c.MemStorage.SetMetricByMetric(metric)
+	metric, err := c.MemStorage.SetMetric(metric)
 	if err != nil {
 		return nil, err
 	}
@@ -112,24 +88,6 @@ func (c *Collector) SaveMetric(metric *model.Metrics) (*model.Metrics, error) {
 		}
 	}
 	return metric, nil
-}
-
-func (c *Collector) GetMetricValue(url string) (string, bool, error) {
-	var typeMetric, nameMetric string
-	parts := strings.Split(url, "/")
-	if len(parts) < 2 || parts[1] != "value" {
-		return "", false, fmt.Errorf("%s", "Невалидный Url")
-	}
-	if len(parts) == 3 || (len(parts) > 3 && parts[3] == "") {
-		return "", false, fmt.Errorf("%s", ErrorNotFound)
-	}
-	if len(parts) >= 4 {
-		typeMetric = parts[2]
-		nameMetric = parts[3]
-	}
-	value, ok := c.GetMetricValueByParam(nameMetric, typeMetric)
-	return value, ok, nil
-
 }
 
 func (c *Collector) GetMetricValueByParam(nameMetric, typeMetric string) (string, bool) {

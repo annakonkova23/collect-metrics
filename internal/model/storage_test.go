@@ -37,7 +37,7 @@ func TestMemStorage_GetMetric(t *testing.T) {
 		},
 	}
 	ms := model.NewMemStorage()
-	ms.SetMetricByMetric(metricExistResult)
+	ms.SetMetric(metricExistResult)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 

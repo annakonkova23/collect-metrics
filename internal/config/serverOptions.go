@@ -20,34 +20,54 @@ type ServerOptions struct {
 	FileStoragePath string
 }
 
-func NewServerOptions() *ServerOptions {
-	host := flag.String("a", defaultHost, "Хост")
-	storeInterval := flag.Int("i", defaultStoreInterval, "Интервал времени, по истечении которого текущие показания сервера сохраняются на диск (в секундах)")
-	restore := flag.Bool("r", defaultRestore, "Загружать ранее сохранённые значения из указанного файла при старте сервера")
-	fileStoragePath := flag.String("f", defaultFileStoragePath, "Путь к файлу, в котором сохраняются значения показателей")
-	flag.Parse()
-	if envHost := os.Getenv("ADDRESS"); envHost != "" {
-		host = &envHost
+func getEnvString(envKey, defaultValue string) string {
+	if v := os.Getenv(envKey); v != "" {
+		return v
 	}
-	if envStoreInterval := os.Getenv("STORE_INTERVAL"); envStoreInterval != "" {
-		if storeIntervalInt, err := strconv.Atoi(envStoreInterval); err == nil {
-			storeInterval = &storeIntervalInt
-		}
-	}
-	if envRestore := os.Getenv("RESTORE"); envRestore != "" {
-		if restoreBool, err := strconv.ParseBool(envRestore); err == nil {
-			restore = &restoreBool
-		}
+	return defaultValue
+}
 
+func getEnvInt(envKey string, defaultValue int) int {
+	if v := os.Getenv(envKey); v != "" {
+		if i, err := strconv.Atoi(v); err == nil {
+			return i
+		}
 	}
-	if envFileStoragePath := os.Getenv("FILE_STORAGE_PATH"); envFileStoragePath != "" {
-		fileStoragePath = &envFileStoragePath
+	return defaultValue
+}
+
+func getEnvBool(envKey string, defaultValue bool) bool {
+	if v := os.Getenv(envKey); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
+		}
 	}
+	return defaultValue
+}
+
+func NewServerOptions() *ServerOptions {
+	hostFlag := flag.String("a", defaultHost, "Хост")
+	storeIntervalFlag := flag.Int("i", defaultStoreInterval, "Интервал сохранения данных (сек)")
+	restoreFlag := flag.Bool("r", defaultRestore, "Восстанавливать данные из файла")
+	fileStoragePathFlag := flag.String("f", defaultFileStoragePath, "Путь к файлу хранения")
+
+	flag.Parse()
+
+	host := *hostFlag
+	storeInterval := *storeIntervalFlag
+	restore := *restoreFlag
+	fileStoragePath := *fileStoragePathFlag
+
+	host = getEnvString("ADDRESS", host)
+	storeInterval = getEnvInt("STORE_INTERVAL", storeInterval)
+	restore = getEnvBool("RESTORE", restore)
+	fileStoragePath = getEnvString("FILE_STORAGE_PATH", fileStoragePath)
+
 	return &ServerOptions{
-		Host:            *host,
-		StoreInterval:   *storeInterval,
-		Restore:         *restore,
-		FileStoragePath: *fileStoragePath,
+		Host:            host,
+		StoreInterval:   storeInterval,
+		Restore:         restore,
+		FileStoragePath: fileStoragePath,
 	}
 
 }

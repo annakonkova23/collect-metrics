@@ -19,7 +19,7 @@ func (s *Server) updateHandler(w http.ResponseWriter, r *http.Request) {
 	paramType := chi.URLParam(r, "type")
 	paramValue := chi.URLParam(r, "value")
 	s.logger.Debug(fmt.Sprintf("updateHandler param:%s %s %s", paramName, paramType, paramValue))
-	err := s.Collector.ParseAndSaveMetricsByParam(paramName, paramType, paramValue)
+	err := s.Collector.SaveMetricsByParam(paramName, paramType, paramValue)
 	if err != nil {
 		if err == service.ErrorNotFound {
 			s.logger.Debug("Передаём ошибку 404")

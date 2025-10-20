@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -40,7 +41,6 @@ func (crw *CustomResponseWriter) WriteHeader(statusCode int) {
 	crw.wroteHeader = true
 }
 
-// Сохраняет тело в буфер
 func (crw *CustomResponseWriter) Write(b []byte) (int, error) {
 	return crw.buf.Write(b)
 }
@@ -51,48 +51,23 @@ func (s *Server) WithLoggingAndCompress(h http.Handler) http.HandlerFunc {
 		uri := r.RequestURI
 		method := r.Method
 
-		newReq := r.Clone(r.Context())
-
-		if r.Header.Get("Content-Encoding") == "gzip" &&
-			(r.Header.Get("Content-Type") == "application/json" || r.Header.Get("Content-Type") == "text/html") {
-
-			gz, err := gzip.NewReader(r.Body)
-			if err != nil {
-				http.Error(w, "Ошибка декодирования gzip", http.StatusInternalServerError)
-				return
-			}
-			defer gz.Close()
-
-			decompressedBody, err := io.ReadAll(gz)
-			if err != nil {
-				http.Error(w, "Ошибка чтения разжатого тела", http.StatusInternalServerError)
-				return
-			}
-
-			newReq.Body = io.NopCloser(bytes.NewBuffer(decompressedBody))
-			newReq.ContentLength = int64(len(decompressedBody))
-			newReq.Header.Del("Content-Encoding")
+		newReq, err := s.decodeRequest(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
 
 		crw := NewCustomResponseWriter(w)
 
 		h.ServeHTTP(crw, newReq)
 
-		if crw.header.Get("Content-Type") == "" {
-			crw.header.Set("Content-Type", "text/plain")
-		}
-
-		contentType := crw.header.Get("Content-Type")
-
-		shouldGzip := false
 		acceptEncoding := r.Header.Get("Accept-Encoding")
-		if strings.Contains(acceptEncoding, "gzip") &&
-			(contentType == "application/json" || contentType == "text/html") {
-			shouldGzip = true
 
+		header, statusCode, shouldGzip, body, err := s.codeResponse(acceptEncoding, crw)
+		if err != nil {
+			s.Sugar.Error("Ошибка сжатия ответа:", err)
+			return
 		}
-
-		for k, vv := range crw.header {
+		for k, vv := range header {
 			for _, v := range vv {
 				w.Header().Add(k, v)
 			}
@@ -102,29 +77,11 @@ func (s *Server) WithLoggingAndCompress(h http.Handler) http.HandlerFunc {
 			w.Header().Set("Content-Encoding", "gzip")
 		}
 
-		w.WriteHeader(crw.statusCode)
+		w.WriteHeader(statusCode)
 
-		if shouldGzip {
-			var gzipBuf bytes.Buffer
-			gz := gzip.NewWriter(&gzipBuf)
-			_, err := gz.Write(crw.buf.Bytes())
-			if err != nil {
-				s.Sugar.Error("Ошибка сжатия:", err)
-				return
-			}
-			if err := gz.Close(); err != nil {
-				s.Sugar.Error("Ошибка закрытия gzip:", err)
-				return
-			}
-			if _, err := w.Write(gzipBuf.Bytes()); err != nil {
-				s.Sugar.Error("Ошибка записи сжатого тела:", err)
-				return
-			}
-		} else {
-			if _, err := w.Write(crw.buf.Bytes()); err != nil {
-				s.Sugar.Error("Ошибка записи тела:", err)
-				return
-			}
+		if _, err := w.Write(body); err != nil {
+			s.Sugar.Error("Ошибка записи тела:", err)
+			return
 		}
 
 		duration := time.Since(start)
@@ -133,7 +90,75 @@ func (s *Server) WithLoggingAndCompress(h http.Handler) http.HandlerFunc {
 			"method", method,
 			"duration", duration,
 			"shouldGzip", shouldGzip,
-			"contentType", contentType,
 		)
 	}
+}
+
+func (s *Server) decodeRequest(r *http.Request) (*http.Request, error) {
+
+	if r.Header.Get("Content-Encoding") == "gzip" &&
+		(r.Header.Get("Content-Type") == "application/json" || r.Header.Get("Content-Type") == "text/html") {
+		newReq := r.Clone(r.Context())
+		decompressBody, err := s.decompessRequest(r)
+		if err != nil {
+			return nil, err
+		}
+		newReq.Body = io.NopCloser(bytes.NewBuffer(decompressBody))
+		newReq.ContentLength = int64(len(decompressBody))
+		newReq.Header.Del("Content-Encoding")
+		return newReq, nil
+	} else {
+		return r, nil
+	}
+
+}
+
+func (s *Server) codeResponse(acceptEncoding string, crw *CustomResponseWriter) (http.Header, int, bool, []byte, error) {
+	contentType := crw.header.Get("Content-Type")
+	shouldGzip := false
+	if strings.Contains(acceptEncoding, "gzip") &&
+		(contentType == "application/json" || contentType == "text/html") {
+		shouldGzip = true
+	}
+
+	var body []byte
+	if shouldGzip {
+		compressBody, err := s.compessResponse(crw)
+		if err != nil {
+			return nil, 0, false, nil, err
+		}
+		body = compressBody
+	} else {
+		body = crw.buf.Bytes()
+	}
+	return crw.header, crw.statusCode, shouldGzip, body, nil
+}
+
+func (s *Server) compessResponse(crw *CustomResponseWriter) ([]byte, error) {
+	var gzipBuf bytes.Buffer
+	gz := gzip.NewWriter(&gzipBuf)
+	_, err := gz.Write(crw.buf.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	err = gz.Close()
+	if err != nil {
+		return nil, err
+	}
+	return gzipBuf.Bytes(), nil
+}
+
+func (s *Server) decompessRequest(r *http.Request) ([]byte, error) {
+	gz, err := gzip.NewReader(r.Body)
+	if err != nil {
+		return nil, fmt.Errorf("%s", "Ошибка декодирования gzip")
+	}
+	defer gz.Close()
+
+	decompressedBody, err := io.ReadAll(gz)
+	if err != nil {
+		return nil, fmt.Errorf("%s", "Ошибка чтения разжатого тела")
+	}
+
+	return decompressedBody, nil
 }
