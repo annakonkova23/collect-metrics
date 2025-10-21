@@ -1,16 +1,28 @@
-package service
+package fileHandler
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/annakonkova23/collect-metrics/internal/model"
 	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
-func (c *Collector) createTempFileInSameDirectory(targetPath string) (*os.File, error) {
+type FileHandler struct {
+	mx       sync.Mutex
+	filePath string
+	logger   *zap.Logger
+}
+
+func NewFileHandler(filePath string, logger *zap.Logger) *FileHandler {
+	return &FileHandler{
+		filePath: filePath,
+		logger:   logger,
+	}
+}
+
+func (fh *FileHandler) createTempFileInSameDirectory(targetPath string) (*os.File, error) {
 
 	var dir string
 	if filepath.IsAbs(targetPath) || strings.Contains(targetPath, string(os.PathSeparator)) {
@@ -38,49 +50,36 @@ func (c *Collector) createTempFileInSameDirectory(targetPath string) (*os.File, 
 	return tmpFile, nil
 }
 
-func (c *Collector) SaveToFile() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (fh *FileHandler) SaveToFile(data []byte) error {
+	fh.mx.Lock()
+	defer fh.mx.Unlock()
 
-	metrics := c.MemStorage.GetMetricAllValues()
-	js, err := json.Marshal(metrics)
-	if err != nil {
-		return fmt.Errorf("ошибка сериализации: %w", err)
-	}
-
-	tmpFile, err := c.createTempFileInSameDirectory(c.FileStoragePath)
+	tmpFile, err := fh.createTempFileInSameDirectory(fh.filePath)
 	if err != nil {
 		return fmt.Errorf("ошибка создания временного файла: %w", err)
 	}
 	defer os.Remove(tmpFile.Name()) // Удаляем, если что-то пошло не так
 
-	if _, err := tmpFile.Write(js); err != nil {
+	if _, err := tmpFile.Write(data); err != nil {
 		return fmt.Errorf("ошибка записи во временный файл: %w", err)
 	}
 	if err := tmpFile.Close(); err != nil {
 		return fmt.Errorf("ошибка закрытия временного файла: %w", err)
 	}
 
-	if err := os.Rename(tmpFile.Name(), c.FileStoragePath); err != nil {
+	if err := os.Rename(tmpFile.Name(), fh.filePath); err != nil {
 		return fmt.Errorf("ошибка переименования файла: %w", err)
 	}
 
-	c.logger.Info("Файл сохранён", zap.String("filename", c.FileStoragePath))
+	fh.logger.Info("Файл сохранён", zap.String("filename", fh.filePath))
 	return nil
 }
 
-func (c *Collector) LoadFromFile() []*model.Metrics {
-	res, err := os.ReadFile(c.FileStoragePath)
+func (fh *FileHandler) LoadFromFile() []byte {
+	res, err := os.ReadFile(fh.filePath)
 	if err != nil {
-		c.logger.Info("Файл не найден", zap.String("filename", c.FileStoragePath))
+		fh.logger.Info("Файл не найден", zap.String("filename", fh.filePath))
 		return nil
 	}
-	metrics := []*model.Metrics{}
-	err = json.Unmarshal(res, &metrics)
-	if err != nil {
-		c.logger.Info("Ошибка парсинга метрик:", zap.String("dataFile", string(res)))
-		return nil
-	}
-	c.logger.Info("Данные из файла загружены", zap.String("filename", c.FileStoragePath))
-	return metrics
+	return res
 }
