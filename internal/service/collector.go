@@ -52,10 +52,11 @@ func NewCollector(cfg *config.ServerOptions, logger *zap.Logger) (*Collector, er
 func (c *Collector) initMemStorage() error {
 	data := c.fileHandler.LoadFromFile()
 	var metrics []*model.Metrics
-	if data != nil && len(data) > 0 {
+	if len(data) > 0 {
 		err := json.Unmarshal(data, &metrics)
 		if err != nil {
-			return fmt.Errorf("Ошибка парсинга метрик в структуру: %s", err.Error())
+			msg := fmt.Sprintf("Ошибка парсинга метрик в структуру: %s", err.Error())
+			return fmt.Errorf("%s", msg)
 		}
 		c.MemStorage.InitMetrics(metrics)
 
