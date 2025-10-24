@@ -1,12 +1,13 @@
 package model
 
 import (
+	//"encoding/json"
+	//"fmt"
+	"go.uber.org/zap"
 	"math/rand"
 	"runtime"
 	"sync"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 type RMetric int
@@ -77,6 +78,7 @@ var allMetrics = []RMetric{Alloc,
 
 type RuntimeMetric struct {
 	Metrics      map[string]float64
+	mx           sync.RWMutex
 	pollInterval int
 	logger       *zap.Logger
 }
@@ -178,7 +180,8 @@ func (rm *RuntimeMetric) CalcMetric() map[string]float64 {
 			valMetric[metric] = float64(stats.Sys)
 		case TotalAlloc:
 			valMetric[metric] = float64(stats.TotalAlloc)
-
+		case Frees:
+			valMetric[metric] = float64(stats.Frees)
 		}
 	}
 	valMetric["RandomValue"] = rand.Float64()
@@ -190,13 +193,21 @@ func (rm *RuntimeMetric) UpdateMetric(chanel chan bool) {
 		zap.Int("pollInterval", rm.pollInterval),
 	)
 	var once sync.Once
+	cnt := 1
 	for {
-		rm.Metrics = rm.CalcMetric()
+		valMetric := rm.CalcMetric()
 		once.Do(func() {
 			rm.logger.Info("Метрики первый раз рассчитались")
 			close(chanel)
 		})
-		rm.Metrics[nameCounter]++
+		rm.mx.Lock()
+		for k, v := range valMetric {
+			rm.Metrics[k] = v
+		}
+		rm.logger.Info("Метрики рассчитались", zap.Int("cnt", cnt))
+		cnt++
+		rm.Metrics[nameCounter] = rm.Metrics[nameCounter] + 1
+		rm.mx.Unlock()
 		time.Sleep(time.Duration(rm.pollInterval) * time.Second)
 	}
 }
@@ -209,7 +220,30 @@ func (rm *RuntimeMetric) GetTypeMetric(name string) string {
 	}
 }
 
-func (rm *RuntimeMetric) GetMetrics() map[string]float64 {
+func (rm *RuntimeMetric) GetMetricsValue() map[string]float64 {
+	rm.mx.RLock()
+	defer rm.mx.RUnlock()
 	return rm.Metrics
+
+}
+
+func (rm *RuntimeMetric) GetMetrics() []*Metrics {
+	rm.mx.RLock()
+	defer rm.mx.RUnlock()
+	mcs := make([]*Metrics, len(rm.Metrics))
+	i := 0
+	for k, v := range rm.Metrics {
+		typeM := rm.GetTypeMetric(k)
+		metric := &Metrics{ID: k, MType: typeM}
+		if typeM == Counter {
+			delta := int64(v)
+			metric.Delta = &delta
+		} else {
+			metric.Value = &v
+		}
+		mcs[i] = metric
+		i++
+	}
+	return mcs
 
 }

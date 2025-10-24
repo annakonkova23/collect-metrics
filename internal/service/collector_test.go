@@ -2,10 +2,12 @@ package service_test
 
 import (
 	//"fmt"
+	"testing"
+
+	"github.com/annakonkova23/collect-metrics/internal/model"
 	"github.com/annakonkova23/collect-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
-	"testing"
 )
 
 func TestCollector_ParseAndSaveMetricsByURL(t *testing.T) {
@@ -63,6 +65,58 @@ func TestCollector_ParseAndSaveMetricsByURL(t *testing.T) {
 			if tt.wantErr {
 				t.Fatal("ParseAndSaveMetricsByURL() succeeded unexpectedly")
 			}
+		})
+	}
+}
+
+func TestCollector_GetMetricJson(t *testing.T) {
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+	defer logger.Sync()
+	metricExist := &model.Metrics{
+		ID:    "StackSys",
+		MType: "gauge",
+	}
+	value := float64(6)
+	metricExistResult := &model.Metrics{
+		ID:    "StackSys",
+		MType: "gauge",
+		Value: &value,
+	}
+	metricExistResultJSON, _ := metricExistResult.MarshalJSON()
+	metricNotExist := &model.Metrics{
+		ID:    "Stack",
+		MType: "gauge",
+	}
+	tests := []struct {
+		name   string
+		metric *model.Metrics
+		want   string
+		err    error
+	}{
+		{
+			name:   "ExistMetric",
+			metric: metricExist,
+			want:   string(metricExistResultJSON),
+			err:    nil,
+		},
+		{
+			name:   "NotExistMetric",
+			metric: metricNotExist,
+			want:   "",
+			err:    service.ErrorNotFound,
+		},
+	}
+	c := service.NewCollector(logger)
+	_, _ = c.SaveMetric(metricExistResult)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := c.GetMetricJSON(tt.metric.ID, tt.metric.MType)
+			assert.Equal(t, tt.err, err)
+			assert.Equal(t, tt.want, got)
+
 		})
 	}
 }

@@ -2,10 +2,14 @@ package handler
 
 import (
 	"fmt"
+	"html/template"
+	"io"
+	"net/http"
+
+	"github.com/annakonkova23/collect-metrics/internal/model"
 	"github.com/annakonkova23/collect-metrics/internal/service"
 	"github.com/go-chi/chi/v5"
-	"html/template"
-	"net/http"
+	"go.uber.org/zap"
 )
 
 func (s *Server) updateHandler(w http.ResponseWriter, r *http.Request) {
@@ -13,7 +17,7 @@ func (s *Server) updateHandler(w http.ResponseWriter, r *http.Request) {
 	paramName := chi.URLParam(r, "name")
 	paramType := chi.URLParam(r, "type")
 	paramValue := chi.URLParam(r, "value")
-	s.logger.Debug(fmt.Sprintf("param:%s %s %s", paramName, paramType, paramValue))
+	s.logger.Debug(fmt.Sprintf("updateHandler param:%s %s %s", paramName, paramType, paramValue))
 	err := s.Collector.ParseAndSaveMetricsByParam(paramName, paramType, paramValue)
 	if err != nil {
 		if err == service.ErrorNotFound {
@@ -25,26 +29,48 @@ func (s *Server) updateHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	w.Header().Set("Content-Type", "Content-Type: text/plain")
+	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) updateJSONHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("Content-Type") != "application/json" {
+		s.logger.Error("Неверный Content-Type")
+		http.Error(w, "Неверный Content-Type", http.StatusBadRequest)
+		return
+	}
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		panic(err)
+	}
+	defer r.Body.Close()
+	s.logger.Debug("updateJsonHandler BODY:" + string(bodyBytes))
+	metric := &model.Metrics{}
+	metric.UnmarshalJSON(bodyBytes)
+	metric, err = s.Collector.SaveMetric(metric)
+	if err != nil {
+		s.logger.Error(err.Error(), zap.String("Body", string(bodyBytes)))
+	}
+	w.Header().Set("Content-Type", "application/json")
+	value, _ := metric.MarshalJSON()
+	w.WriteHeader(http.StatusOK)
+	w.Write(value)
+
 }
 
 func (s *Server) valueHandler(w http.ResponseWriter, r *http.Request) {
 	paramName := chi.URLParam(r, "name")
 	paramType := chi.URLParam(r, "type")
 	s.logger.Debug(fmt.Sprintf("param:%s %s", paramName, paramType))
-	value, ok, err := s.Collector.GetMetricValueByParam(paramName, paramType)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	value, ok := s.Collector.GetMetricValueByParam(paramName, paramType)
 	if !ok {
 		http.Error(w, "Метрика не найдена", http.StatusNotFound)
 		return
 	}
-	w.Header().Set("Content-Type", "Content-Type: text/plain")
-	w.Write([]byte(value))
+	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(value))
+
 }
 
 func (s *Server) allValuesHandler(w http.ResponseWriter, r *http.Request) {
@@ -94,4 +120,36 @@ func GenerateHTMLTable(data []*service.Metric, w http.ResponseWriter) {
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, "Ошибка при рендеринге шаблона", http.StatusInternalServerError)
 	}
+}
+
+func (s *Server) valueJSONHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("Content-Type") != "application/json" {
+		s.logger.Error("Неверный Content-Type")
+		http.Error(w, "Неверный Content-Type", http.StatusBadRequest)
+		return
+	}
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		panic(err)
+	}
+	defer r.Body.Close()
+	s.logger.Debug("valueJSONHandler BODY:" + string(bodyBytes))
+	metric := &model.Metrics{}
+	metric.UnmarshalJSON(bodyBytes)
+	value, err := s.Collector.GetMetricJSON(metric.ID, metric.MType)
+	if err != nil {
+		if err == service.ErrorNotFound {
+			s.logger.Debug("Передаём ошибку 404")
+			http.Error(w, service.ErrorNotFound.Error(), http.StatusNotFound)
+			return
+		} else {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Println("body:", value)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(value))
+
 }
