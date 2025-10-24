@@ -19,7 +19,7 @@ func (s *Server) updateHandler(w http.ResponseWriter, r *http.Request) {
 	paramType := chi.URLParam(r, "type")
 	paramValue := chi.URLParam(r, "value")
 	s.logger.Debug(fmt.Sprintf("updateHandler param:%s %s %s", paramName, paramType, paramValue))
-	err := s.Collector.ParseAndSaveMetricsByParam(paramName, paramType, paramValue)
+	err := s.Collector.SaveMetricsByParam(paramName, paramType, paramValue)
 	if err != nil {
 		if err == service.ErrorNotFound {
 			s.logger.Debug("Передаём ошибку 404")
@@ -42,7 +42,7 @@ func (s *Server) updateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		panic(err)
+		s.logger.Error(err.Error())
 	}
 	defer r.Body.Close()
 	s.logger.Debug("updateJsonHandler BODY:" + string(bodyBytes))
@@ -133,7 +133,8 @@ func (s *Server) valueJSONHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		panic(err)
+		s.logger.Error(err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 	defer r.Body.Close()
 	s.logger.Debug("valueJSONHandler BODY:" + string(bodyBytes))

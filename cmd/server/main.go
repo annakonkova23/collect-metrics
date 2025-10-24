@@ -1,34 +1,28 @@
 package main
 
 import (
-	"flag"
+	"fmt"
+
+	"github.com/annakonkova23/collect-metrics/internal/config"
 	"github.com/annakonkova23/collect-metrics/internal/handler"
 	"go.uber.org/zap"
-	"os"
-)
-
-const (
-	defaultHost = "localhost:8080"
 )
 
 func main() {
-	host := flag.String("a", defaultHost, "Хост")
-	flag.Parse()
-	if envHost := os.Getenv("ADDRESS"); envHost != "" {
-		host = &envHost
-	}
-	if host == nil {
-		panic("Не указан адрес")
-	}
+	options := config.NewServerOptions()
+
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		panic(err)
 	}
 	defer logger.Sync()
-
-	h := handler.NewServer(*host, logger)
+	h, err := handler.NewServer(options, logger)
+	if err != nil {
+		panic(err)
+	}
+	logger.Info("Опции", zap.String("options", fmt.Sprintf("%+v", options)))
 	logger.Info("Сервер создан",
-		zap.String("host", *host),
+		zap.String("host", "localhost:8080"),
 	)
 	err = h.StartAndListen()
 	if err != nil {

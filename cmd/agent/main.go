@@ -13,7 +13,6 @@ const (
 	defaultReportInterval = 5
 	defaultHost           = "localhost:8080"
 	defaultPollInterval   = 2
-	env
 )
 
 func main() {
@@ -50,6 +49,7 @@ func main() {
 	URL := ""
 	logger, err := zap.NewDevelopment()
 	if err != nil {
+		logger.Error(err.Error())
 		panic(err)
 	}
 	defer logger.Sync()
@@ -59,6 +59,7 @@ func main() {
 			zap.String("URL", URL),
 		)
 	} else {
+		logger.Error("Не указан адрес")
 		panic("Не указан адрес")
 	}
 	if pollInterval <= 0 {

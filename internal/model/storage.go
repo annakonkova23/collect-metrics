@@ -19,66 +19,7 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-func (ms *MemStorage) SetMetric(name, typeMetr, value string) error {
-	if name == "" {
-		return fmt.Errorf("%s", "Имя метрики не может быть пустым")
-	}
-	if typeMetr != Counter && typeMetr != Gauge {
-		msg := fmt.Sprintf("Некорректный тип метрики[%s]", typeMetr)
-		return fmt.Errorf("%s", msg)
-	}
-	if value == "" {
-		return fmt.Errorf("%s", "Не заполнено значение")
-
-	}
-	var deltaVal *int64
-	var valueVal *float64
-	ms.mx.Lock()
-	defer ms.mx.Unlock()
-	idx := slices.IndexFunc(ms.metrics, func(m *Metrics) bool {
-		if m.ID == name && m.MType == typeMetr {
-			return true
-		}
-		return false
-	})
-	if typeMetr == Counter {
-		if delta, err := strconv.ParseInt(value, 10, 64); err != nil {
-			msg := fmt.Sprintf("Некорректное значение счетчика [%s]", value)
-			return fmt.Errorf("%s", msg)
-		} else {
-			if idx >= 0 {
-				if ms.metrics[idx].Delta != nil {
-					delta = *ms.metrics[idx].Delta + delta
-				}
-			}
-			deltaVal = &delta
-
-		}
-	}
-
-	if typeMetr == Gauge {
-		if valueFloat, err := strconv.ParseFloat(value, 64); err != nil {
-			msg := fmt.Sprintf("Некорректное значение float64 [%s]", value)
-			return fmt.Errorf("%s", msg)
-		} else {
-			valueVal = &valueFloat
-		}
-	}
-	if idx >= 0 {
-		ms.metrics[idx].Value = valueVal
-		ms.metrics[idx].Delta = deltaVal
-	} else {
-		ms.metrics = append(ms.metrics, &Metrics{
-			ID:    name,
-			MType: typeMetr,
-			Delta: deltaVal,
-			Value: valueVal,
-		})
-	}
-	return nil
-}
-
-func (ms *MemStorage) SetMetricByMetric(metric *Metrics) (*Metrics, error) {
+func (ms *MemStorage) SetMetric(metric *Metrics) (*Metrics, error) {
 	if metric.ID == "" {
 		return nil, fmt.Errorf("%s", "Имя метрики не может быть пустым")
 	}
@@ -190,4 +131,10 @@ func (ms *MemStorage) GetMetricAllValues() []*Metrics {
 		metrics[i] = m.Copy()
 	}
 	return metrics
+}
+
+func (ms *MemStorage) InitMetrics(mts []*Metrics) {
+	ms.mx.Lock()
+	defer ms.mx.Unlock()
+	ms.metrics = mts
 }
