@@ -79,7 +79,6 @@ func (ms *MemStorage) SetMetric(name, typeMetr, value string) error {
 }
 
 func (ms *MemStorage) SetMetricByMetric(metric *Metrics) (*Metrics, error) {
-	fmt.Printf("metric: %+v\n", metric)
 	if metric.ID == "" {
 		return nil, fmt.Errorf("%s", "Имя метрики не может быть пустым")
 	}

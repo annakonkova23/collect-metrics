@@ -1,10 +1,13 @@
 package agent
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
 	"net/http"
+	"strconv"
 )
 
 type Client struct {
@@ -20,16 +23,14 @@ func NewClient(sugar *zap.SugaredLogger) *Client {
 }
 
 type (
-	// берём структуру для хранения сведений об ответе
 	responseData struct {
 		status int
 		size   int
 	}
 
-	// добавляем реализацию http.ResponseWriter
 	loggingResponseWriter struct {
-		http.ResponseWriter // встраиваем оригинальный http.ResponseWriter
-		responseData        *responseData
+		http.ResponseWriter
+		responseData *responseData
 	}
 )
 
@@ -50,10 +51,24 @@ func (c *Client) Post(url string) error {
 }
 
 func (c *Client) PostWithBody(url string, body []byte) error {
+
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	defer gz.Close()
+
+	if _, err := gz.Write(body); err != nil {
+		return err
+	}
+	if err := gz.Close(); err != nil {
+		return err
+	}
 	c.client.OnAfterResponse(c.WithLoggingResponse)
 	response, err := c.client.R().
+		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Content-Type", "application/json").
-		SetBody(body).
+		SetHeader("Content-Length", strconv.Itoa(buf.Len())).
+		SetHeader("Accept-Encoding", "gzip").
+		SetBody(buf.Bytes()).
 		Post(url)
 
 	if err != nil {
@@ -69,6 +84,8 @@ func (c *Client) WithLoggingResponse(client *resty.Client, response *resty.Respo
 	c.Sugar.Infoln(
 		"status", response.Status(), // получаем перехваченный код статуса ответа
 		"size", response.Size(), // получаем перехваченный размер ответа
+		"content-type", response.Header().Get("Content-Type"),
+		"content-encoding", response.Header().Get("Content-Encoding"),
 	)
 	return nil
 }

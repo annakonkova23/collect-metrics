@@ -20,21 +20,19 @@ type Metrics struct {
 }
 
 func (m *Metrics) Copy() *Metrics {
-	// Копирование Delta
+
 	var delta *int64
 	if m.Delta != nil {
 		d := *m.Delta
 		delta = &d
 	}
 
-	// Копирование Value
 	var value *float64
 	if m.Value != nil {
 		v := *m.Value
 		value = &v
 	}
 
-	// Создание копии структуры
 	return &Metrics{
 		ID:    m.ID,
 		MType: m.MType,
