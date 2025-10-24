@@ -2,10 +2,11 @@ package main
 
 import (
 	"flag"
-	"github.com/annakonkova23/collect-metrics/internal/service"
-	"log"
 	"os"
 	"strconv"
+
+	"github.com/annakonkova23/collect-metrics/internal/service"
+	"go.uber.org/zap"
 )
 
 const (
@@ -47,22 +48,33 @@ func main() {
 		pollInterval = flagPollInterval
 	}
 	URL := ""
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		// вызываем панику, если ошибка
+		panic(err)
+	}
+	defer logger.Sync()
 	if host != "" {
 		URL = "http://" + host + "/update/"
-		log.Println("URL:", URL)
+		logger.Info("Параметры",
+			zap.String("URL", URL),
+		)
 	} else {
 		panic("Не указан адрес")
 	}
 	if pollInterval <= 0 {
 		panic("Неверно указана частота опроса")
 	}
-	log.Println("PollInterval:", pollInterval)
+	logger.Info("Параметры",
+		zap.Int("PollInterval", pollInterval),
+	)
 	if reportInterval <= 0 {
 		panic("Неверно указана частота отправки")
 	}
-	log.Println("ReportInterval:", reportInterval)
-	sender := service.NewSender(URL, pollInterval, reportInterval)
-	log.Println("Отправитель создан")
+	logger.Info("Параметры",
+		zap.Int("ReportInterval", reportInterval))
+	sender := service.NewSender(URL, pollInterval, reportInterval, logger)
+	logger.Info("Отправитель создан")
 	sender.Start()
 
 }

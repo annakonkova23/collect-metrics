@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/annakonkova23/collect-metrics/internal/handler"
-	"log"
+	"go.uber.org/zap"
 	"os"
 )
 
@@ -20,9 +20,18 @@ func main() {
 	if host == nil {
 		panic("Не указан адрес")
 	}
-	h := handler.NewServer(*host)
-	log.Println("Сервер создан")
-	err := h.StartAndListen()
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		// вызываем панику, если ошибка
+		panic(err)
+	}
+	defer logger.Sync()
+
+	h := handler.NewServer(*host, logger)
+	logger.Info("Сервер создан",
+		zap.String("host", *host),
+	)
+	err = h.StartAndListen()
 	if err != nil {
 		panic(err)
 	}

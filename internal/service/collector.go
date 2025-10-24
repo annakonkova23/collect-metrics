@@ -1,19 +1,20 @@
 package service
 
 import (
+	"errors"
 	"fmt"
-	"github.com/annakonkova23/collect-metrics/internal/model"
-	"log"
-	"strings"
 	"strconv"
+	"strings"
+
+	"github.com/annakonkova23/collect-metrics/internal/model"
+	"go.uber.org/zap"
 )
 
-const (
-	ErrorNotFound = "Not exists name metric"
-)
+var ErrorNotFound = errors.New("not exists name metric")
 
 type Collector struct {
 	MemStorage *model.MemStorage
+	logger     *zap.Logger
 }
 
 type Metric struct {
@@ -22,8 +23,8 @@ type Metric struct {
 	Value string
 }
 
-func NewCollector() *Collector {
-	return &Collector{MemStorage: model.NewMemStorage()}
+func NewCollector(logger *zap.Logger) *Collector {
+	return &Collector{MemStorage: model.NewMemStorage(), logger: logger}
 }
 
 func (c *Collector) ParseAndSaveMetricsByURL(url string) error {
@@ -33,7 +34,6 @@ func (c *Collector) ParseAndSaveMetricsByURL(url string) error {
 		return fmt.Errorf("%s", "Невалидный Url")
 	}
 	if len(parts) == 3 || (len(parts) > 3 && parts[3] == "") {
-		log.Println("Запрос без именования метрики")
 		return fmt.Errorf("%s", ErrorNotFound)
 	}
 	if len(parts) >= 4 {
@@ -65,7 +65,6 @@ func (c *Collector) GetMetricValue(url string) (string, bool, error) {
 		return "", false, fmt.Errorf("%s", "Невалидный Url")
 	}
 	if len(parts) == 3 || (len(parts) > 3 && parts[3] == "") {
-		log.Println("Запрос без именования метрики")
 		return "", false, fmt.Errorf("%s", ErrorNotFound)
 	}
 	if len(parts) >= 4 {
@@ -84,23 +83,23 @@ func (c *Collector) GetMetricValueByParam(nameMetric, typeMetric string) (string
 }
 
 func (c *Collector) GetMetricAllValues() []*Metric {
-	metric:= c.MemStorage.GetMetricAllValues()
+	metric := c.MemStorage.GetMetricAllValues()
 	metricResult := make([]*Metric, len(metric))
 	for i, m := range metric {
-		metricResult[i] = &Metric{Name: m.ID, Type : m.MType}
-		value:=""
+		metricResult[i] = &Metric{Name: m.ID, Type: m.MType}
+		value := ""
 		if m.MType == model.Counter {
 			if m.Delta != nil {
-				value=strconv.FormatInt(*m.Delta, 10)
+				value = strconv.FormatInt(*m.Delta, 10)
 			}
 		}
 		if m.MType == model.Gauge {
 			if m.Value != nil {
-				value=strconv.FormatFloat(*m.Value, 'f', -1, 64)
+				value = strconv.FormatFloat(*m.Value, 'f', -1, 64)
 			}
 		}
-		metricResult[i].Value=value
+		metricResult[i].Value = value
 	}
 	return metricResult
-	
+
 }

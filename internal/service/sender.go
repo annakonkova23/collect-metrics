@@ -1,13 +1,14 @@
 package service
 
 import (
-	"log"
+	"fmt"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/annakonkova23/collect-metrics/internal/agent"
 	"github.com/annakonkova23/collect-metrics/internal/model"
+	"go.uber.org/zap"
 )
 
 type Sender struct {
@@ -15,18 +16,20 @@ type Sender struct {
 	runMetric      *model.RuntimeMetric
 	url            string
 	reportInterval int
+	logger         *zap.Logger
 }
 
-func NewSender(url string, pollInterval, reportInterval int) *Sender {
+func NewSender(url string, pollInterval, reportInterval int, logger *zap.Logger) *Sender {
 	return &Sender{
-		client:         agent.NewClient(),
-		runMetric:      model.NewRuntimeMetric(pollInterval),
+		client:         agent.NewClient(logger.Sugar()),
+		runMetric:      model.NewRuntimeMetric(pollInterval, logger),
 		url:            url,
 		reportInterval: reportInterval,
+		logger:         logger,
 	}
 }
 func (s *Sender) SendRequest(b chan bool) {
-	log.Println("Ждём расчета метрик")
+	s.logger.Info("Ждём расчета метрик")
 	<-b
 	for {
 		metrics := s.runMetric.GetMetrics()
@@ -35,11 +38,11 @@ func (s *Sender) SendRequest(b chan bool) {
 			wg.Add(1)
 			go func() {
 				valueStr := strconv.FormatFloat(value, 'f', -1, 64)
-				log.Printf("Запрос %s %s", name, valueStr)
+				s.logger.Info(fmt.Sprintf("Запрос %s %s", name, valueStr))
 				if err := s.client.Post(s.GetURLForMetric(name, s.runMetric.GetTypeMetric(name), valueStr)); err != nil {
-					log.Printf("Ошибка отправки метрики %s: %v", name, err)
+					s.logger.Info(fmt.Sprintf("Ошибка отправки метрики %s: %v", name, err))
 				} else {
-					log.Printf("Успешный ответ %s %s", name, valueStr)
+					s.logger.Info(fmt.Sprintf("Успешный ответ %s %s", name, valueStr))
 				}
 				wg.Done()
 			}()
@@ -56,7 +59,7 @@ func (s *Sender) GetURLForMetric(name, typeM, value string) string {
 
 func (s *Sender) Start() {
 	b := make(chan bool)
-	log.Println("Старт отправления метрик")
+	s.logger.Info("Старт отправления метрик")
 	go s.runMetric.UpdateMetric(b)
 	s.SendRequest(b)
 }

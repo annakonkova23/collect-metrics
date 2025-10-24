@@ -4,6 +4,7 @@ import (
 	//"fmt"
 	"github.com/annakonkova23/collect-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 	"testing"
 )
 
@@ -12,7 +13,7 @@ func TestCollector_ParseAndSaveMetricsByURL(t *testing.T) {
 		name    string
 		url     string
 		wantErr bool
-		err     string
+		err     error
 	}{
 		{
 			name:    "Positive",
@@ -41,15 +42,21 @@ func TestCollector_ParseAndSaveMetricsByURL(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		// вызываем панику, если ошибка
+		panic(err)
+	}
+	defer logger.Sync()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := service.NewCollector()
+			c := service.NewCollector(logger)
 			gotErr := c.ParseAndSaveMetricsByURL(tt.url)
 			if gotErr != nil {
 				if !tt.wantErr {
 					t.Errorf("ParseAndSaveMetricsByURL() failed: %v", gotErr)
-				} else if tt.err != "" {
-					assert.EqualError(t, gotErr, tt.err)
+				} else if tt.err != nil {
+					assert.EqualError(t, gotErr, tt.err.Error())
 				}
 				return
 			}
