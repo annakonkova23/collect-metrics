@@ -10,8 +10,10 @@ const (
 	defaultHost            = "localhost:8080"
 	defaultStoreInterval   = 300
 	defaultRestore         = true
-	defaultFileStoragePath = "metrics.json"
-	defaultDBDSN           = "host=localhost port=5432 user=postgres password=anna dbname=metricsdb sslmode=disable"
+	defaultFileStoragePath = ""
+	//defaultFileStoragePath = "metrics.json"
+	defaultDBDSN = ""
+	//defaultDBDSN       = "host=localhost port=5432 user=postgres password=anna dbname=metricsdb sslmode=disable"
 )
 
 type ServerOptions struct {
