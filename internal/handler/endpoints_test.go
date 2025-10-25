@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 
 	//"fmt"
 	"net/http"
@@ -14,6 +15,8 @@ import (
 	//"github.com/go-resty/resty/v2"
 	//"github.com/stretchr/testify/assert"
 	"github.com/annakonkova23/collect-metrics/internal/config"
+	"github.com/annakonkova23/collect-metrics/internal/config/db"
+	"github.com/annakonkova23/collect-metrics/internal/service"
 	"go.uber.org/zap"
 )
 
@@ -68,13 +71,18 @@ func TestServer_updateJsonHandler(t *testing.T) {
 			result: http.StatusBadRequest,
 		},
 	}
-
+	ctx := context.Background()
+	dbConnect := db.NewDbconnect(cfg.DatabaseDSN)
+	collector, err := service.NewCollector(ctx, cfg, logger)
+	if err != nil {
+		t.Errorf("Error on creating collector: %v", err)
+	}
+	s, err := NewServer(ctx, cfg, logger, collector, dbConnect)
+	if err != nil {
+		t.Errorf("Error on creating server: %v", err)
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s, err := NewServer(cfg, logger)
-			if err != nil {
-				t.Errorf("Error on creating server: %v", err)
-			}
 			tt.r.Header.Set("Content-Type", "application/json")
 			s.updateJSONHandler(tt.w, tt.r)
 

@@ -1,16 +1,18 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"sync"
+	"time"
+
 	"github.com/annakonkova23/collect-metrics/internal/config"
 	"github.com/annakonkova23/collect-metrics/internal/model"
 	fh "github.com/annakonkova23/collect-metrics/internal/service/fileHandler"
 	"go.uber.org/zap"
-	"strconv"
-	"sync"
-	"time"
 )
 
 var ErrorNotFound = errors.New("not exists name metric")
@@ -29,7 +31,7 @@ type Metric struct {
 	Value string
 }
 
-func NewCollector(cfg *config.ServerOptions, logger *zap.Logger) (*Collector, error) {
+func NewCollector(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logger) (*Collector, error) {
 	clr := &Collector{
 		fileHandler:   fh.NewFileHandler(cfg.FileStoragePath, logger),
 		StoreInterval: cfg.StoreInterval,
@@ -44,7 +46,7 @@ func NewCollector(cfg *config.ServerOptions, logger *zap.Logger) (*Collector, er
 		}
 	}
 	if cfg.StoreInterval > 0 {
-		go clr.ProcessUploadFile()
+		go clr.ProcessUploadFile(ctx)
 	}
 	return clr, nil
 }
@@ -141,11 +143,22 @@ func (c *Collector) GetMetricAllValues() []*Metric {
 
 }
 
-func (c *Collector) ProcessUploadFile() {
+func (c *Collector) ProcessUploadFile(ctx context.Context) {
+	if c.StoreInterval == 0 {
+		c.logger.Info("Процесс записи в файл не будет запущен")
+		return
+	}
 	c.logger.Info("Запуск процесса сохранения файла", zap.Int("StoreInterval", c.StoreInterval))
+	timer := time.NewTimer(time.Duration(c.StoreInterval) * time.Second)
 	for {
-		c.GetDataAndSaveToFile()
-		time.Sleep(time.Duration(c.StoreInterval) * time.Second)
+		select {
+		case <-ctx.Done():
+			c.GetDataAndSaveToFile()
+			c.logger.Info("Прерывание процесса сохранения в файл")
+			return
+		case <-timer.C:
+			c.GetDataAndSaveToFile()
+		}
 	}
 }
 
