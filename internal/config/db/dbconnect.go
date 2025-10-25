@@ -23,13 +23,13 @@ func (db *DBconnect) Connect() (*sql.DB, error) {
 	if db == nil {
 		return nil, errors.New("db is nil")
 	}
-	sqlDb, err := sql.Open("pgx", db.connString)
-	return sqlDb, err
+	sqlDB, err := sql.Open("pgx", db.connString)
+	return sqlDB, err
 }
 
-func (db *DBconnect) Ping(sqlDb *sql.DB) error {
+func (db *DBconnect) Ping(sqlDB *sql.DB) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	err := sqlDb.PingContext(ctx)
+	err := sqlDB.PingContext(ctx)
 	return err
 }
