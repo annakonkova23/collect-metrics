@@ -107,8 +107,13 @@ func (c *Collector) initMemStorageFromDB(ctx context.Context) error {
 	defer rows.Close()
 	for rows.Next() {
 		if err := rows.Scan(&data); err != nil {
+			c.logger.Error("Ошибка сканирования данных", zap.Error(err))
 			return err
 		}
+	}
+	if err := rows.Err(); err != nil {
+		c.logger.Error("Ошибка чтения строк", zap.Error(err))
+		return nil
 	}
 	if data.Valid {
 		if err := json.Unmarshal([]byte(data.String), &metrics); err != nil {
