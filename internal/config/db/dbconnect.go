@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
+	//"os"
+	//"path/filepath"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -42,15 +42,15 @@ func (db *DBconnect) Connect(createDB bool) (*sql.DB, error) {
 }
 
 func (db *DBconnect) CreateObjectDB(sqlDB *sql.DB) error {
-	currentDir, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
+	//currentDir, err := os.Getwd()
+	//if err != nil {
+	//	panic(err)
+	//}
 
-	projectRoot := filepath.Dir(filepath.Dir(currentDir))
-	migrationsDir := filepath.Join(projectRoot, "migrations")
-	fmt.Println("директория migr:", migrationsDir)
-	if err := goose.Up(sqlDB, migrationsDir); err != nil {
+	//projectRoot := filepath.Dir(filepath.Dir(currentDir))
+	//migrationsDir := filepath.Join(projectRoot, "migrations")
+	fmt.Println("директория migr:", dirScript)
+	if err := goose.Up(sqlDB, dirScript); err != nil {
 		return fmt.Errorf("Ошибка создания объектов БД %s", err.Error())
 	}
 	return nil
