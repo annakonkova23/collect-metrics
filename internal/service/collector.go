@@ -101,7 +101,8 @@ func (c *Collector) initMemStorageFromDB(ctx context.Context) error {
 													'delta',counter_value)))
 											from storage.metrics_value`)
 	if err != nil {
-		return err
+		c.logger.Error("Ошибка запроса метрик из БД", zap.Error(err))
+		return nil
 	}
 	defer rows.Close()
 	for rows.Next() {
