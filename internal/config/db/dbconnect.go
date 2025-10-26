@@ -5,9 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
+)
+
+const (
+	dirScript = "./migrations"
 )
 
 type DBconnect struct {
@@ -20,17 +27,33 @@ func NewDbconnect(connString string) *DBconnect {
 	}
 }
 
-func (db *DBconnect) Connect() (*sql.DB, error) {
+func (db *DBconnect) Connect(createDB bool) (*sql.DB, error) {
 	if db == nil {
 		return nil, errors.New("db is nil")
 	}
 	fmt.Println("Строка подключения:", db.connString)
 	sqlDB, err := sql.Open("pgx", db.connString)
-	err = sqlDB.Ping()
-	if err != nil {
-		fmt.Println("Ошибка ping:", err.Error())
+	if createDB {
+		if err := db.CreateObjectDB(sqlDB); err != nil {
+			return nil, err
+		}
 	}
 	return sqlDB, err
+}
+
+func (db *DBconnect) CreateObjectDB(sqlDB *sql.DB) error {
+	currentDir, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+
+	projectRoot := filepath.Dir(filepath.Dir(currentDir))
+	migrationsDir := filepath.Join(projectRoot, "migrations")
+	fmt.Println("директория migr:", migrationsDir)
+	if err := goose.Up(sqlDB, migrationsDir); err != nil {
+		return fmt.Errorf("Ошибка создания объектов БД %s", err.Error())
+	}
+	return nil
 }
 
 func (db *DBconnect) Ping(sqlDB *sql.DB) error {

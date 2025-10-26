@@ -40,7 +40,7 @@ func NewCollector(ctx context.Context, cfg *config.ServerOptions, logger *zap.Lo
 		logger:        logger,
 		MemStorage:    model.NewMemStorage(),
 	}
-	dbConn, err := dbConnect.Connect()
+	dbConn, err := dbConnect.Connect(true)
 	if err != nil {
 		logger.Error("Ошибка открытия подключения к БД", zap.Error(err))
 	} else {
