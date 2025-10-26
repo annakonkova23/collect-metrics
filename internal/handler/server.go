@@ -37,6 +37,7 @@ func (s *Server) StartAndListen() error {
 	s.router.Get("/", s.WithLoggingAndCompress(http.HandlerFunc(s.allValuesHandler)))
 	s.router.Post("/value/", s.WithLoggingAndCompress(http.HandlerFunc(s.valueJSONHandler)))
 	s.router.Get("/ping", s.WithLoggingAndCompress(http.HandlerFunc(s.pingDBHandler)))
+	s.router.Post("/updates/", s.WithLoggingAndCompress(http.HandlerFunc(s.updateSeveralJSONHandler)))
 	if err := http.ListenAndServe(s.url, s.router); err != nil {
 		return err
 	}

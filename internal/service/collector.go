@@ -127,7 +127,7 @@ func (c *Collector) initMemStorageFromDB(ctx context.Context) error {
 	return nil
 }
 
-func (c *Collector) SaveMetricsByParam(name, typeMetric, value string) error {
+func (c *Collector) SaveMetricsByParam(ctx context.Context, name, typeMetric, value string) error {
 	metric := &model.Metrics{
 		ID:    name,
 		MType: typeMetric,
@@ -146,25 +146,11 @@ func (c *Collector) SaveMetricsByParam(name, typeMetric, value string) error {
 			return fmt.Errorf("неверный формат значения для float64: %s", value)
 		}
 	}
-	_, err := c.SaveMetric(metric)
+	_, err := c.SaveMetrics(ctx, []*model.Metrics{metric})
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-func (c *Collector) SaveMetric(metric *model.Metrics) (*model.Metrics, error) {
-	metric, err := c.MemStorage.SetMetric(metric)
-	if err != nil {
-		return nil, err
-	}
-	if c.conn != nil {
-		c.SaveMetricToDB(metric)
-	}
-	if c.StoreInterval == 0 && c.fileHandler != nil {
-		c.GetDataAndSaveToFile()
-	}
-	return metric, nil
 }
 
 func (c *Collector) GetMetricValueByParam(nameMetric, typeMetric string) (string, bool) {
@@ -240,16 +226,63 @@ func (c *Collector) GetDataAndSaveToFile() {
 	}
 }
 
-func (c *Collector) SaveMetricToDB(metric *model.Metrics) {
-	res, err := c.conn.ExecContext(context.Background(), `
-			insert into storage.metrics_value(code,type_metric, gauge_value, counter_value) 
-			values ($1, $2, $3, $4) on conflict (code,type_metric) 
-			do update set gauge_value = $5, counter_value = $6`, metric.ID, metric.MType, metric.Value, metric.Delta, metric.Value, metric.Delta)
+func (c *Collector) SaveMetrics(ctx context.Context, metrics []*model.Metrics) ([]*model.Metrics, error) {
+	c.mx.Lock()
+	defer c.mx.Unlock()
+	metricsNew := []*model.Metrics{}
+	for _, metric := range metrics {
+		metric, err := c.MemStorage.SetMetric(metric)
+		if err != nil {
+			return nil, err
+		}
+		metricsNew = append(metricsNew, metric)
+	}
+	if c.conn != nil {
+		err := c.saveMetricsToDB(ctx, metricsNew)
+		if err != nil {
+			c.logger.Error("Ошибка сохранения метрик в БД", zap.Error(err))
+		}
+	}
+	if c.StoreInterval == 0 && c.fileHandler != nil {
+		c.GetDataAndSaveToFile()
+	}
+	return metrics, nil
+
+}
+
+func (c *Collector) saveMetricsToDB(ctx context.Context, metrics []*model.Metrics) error {
+	tx, err := c.conn.Begin()
 	if err != nil {
-		c.logger.Error("Ошибка сохранения метрики в БД", zap.Error(err))
+		return fmt.Errorf("ошибка начала транзакции: %w", err)
 	}
-	if res != nil {
-		rowsAffected, _ := res.RowsAffected()
-		c.logger.Info("Метрика сохранена в БД", zap.Int64("количество обновленных строк", rowsAffected))
+
+	query := `
+        INSERT INTO storage.metrics_value(code, type_metric, gauge_value, counter_value)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (code, type_metric)
+        DO UPDATE SET
+            gauge_value = EXCLUDED.gauge_value,
+            counter_value = EXCLUDED.counter_value;
+    `
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("ошибка подготовки запроса: %w", err)
 	}
+	defer stmt.Close()
+
+	for _, metric := range metrics {
+		_, err := stmt.ExecContext(ctx, metric.ID, metric.MType, metric.Value, metric.Delta)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("ошибка выполнения запроса для метрики %s: %w", metric.ID, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("ошибка фиксации транзакции: %w", err)
+	}
+
+	return nil
 }

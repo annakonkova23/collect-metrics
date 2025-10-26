@@ -57,7 +57,7 @@ func TestCollector_GetMetricJson(t *testing.T) {
 	if err != nil {
 		t.Errorf("Ошибка при создании сервиса: %v", err)
 	}
-	_, _ = c.SaveMetric(metricExistResult)
+	_, _ = c.SaveMetrics(context.Background(), []*model.Metrics{metricExistResult})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := c.GetMetricJSON(tt.metric.ID, tt.metric.MType)

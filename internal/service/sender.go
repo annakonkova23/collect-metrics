@@ -1,8 +1,8 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/annakonkova23/collect-metrics/internal/agent"
@@ -32,21 +32,16 @@ func (s *Sender) SendRequest(b chan bool) {
 	<-b
 	for {
 		metrics := s.runMetric.GetMetrics()
-		var wg sync.WaitGroup
-		for _, metric := range metrics {
-			wg.Add(1)
-			go func() {
-				body, _ := metric.MarshalJSON()
-				s.logger.Info(fmt.Sprintf("Запрос %s", string(body)))
-				if err := s.client.PostWithBody(s.url, body); err != nil {
-					s.logger.Info(fmt.Sprintf("Ошибка отправки метрики %s: %v", string(body), err))
-				} else {
-					s.logger.Info("Успешный ответ")
-				}
-				wg.Done()
-			}()
+		if len(metrics) == 0 {
+			continue
 		}
-		wg.Wait()
+		body, _ := json.Marshal(metrics)
+		s.logger.Info(fmt.Sprintf("Запрос %s", string(body)))
+		if err := s.client.PostWithBody(s.url, body); err != nil {
+			s.logger.Info(fmt.Sprintf("Ошибка отправки метрики %s: %v", string(body), err))
+		} else {
+			s.logger.Info("Успешный ответ")
+		}
 		time.Sleep(time.Duration(s.reportInterval) * time.Second)
 
 	}
