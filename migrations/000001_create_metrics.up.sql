@@ -2,8 +2,8 @@ CREATE SCHEMA IF NOT exists storage;
 
 CREATE TABLE IF NOT EXISTS storage.metrics_value(
     code varchar(500) not null,
-    type_metric varchar(100) not null,
-    gauge_value double precision null,
+    type_metric varchar(100) not null
+    gauge_value double precision null
     counter_value int null
 );
 
