@@ -1,4 +1,4 @@
-package dbworker
+package dbmanager
 
 import (
 	"errors"

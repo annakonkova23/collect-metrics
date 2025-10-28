@@ -12,7 +12,7 @@ import (
 
 	"github.com/annakonkova23/collect-metrics/internal/config"
 	"github.com/annakonkova23/collect-metrics/internal/model"
-	"github.com/annakonkova23/collect-metrics/internal/service/dbworker"
+	"github.com/annakonkova23/collect-metrics/internal/service/dbmanager"
 	fh "github.com/annakonkova23/collect-metrics/internal/service/fileHandler"
 	"go.uber.org/zap"
 )
@@ -30,7 +30,7 @@ type Collector struct {
 	fileHandler   *fh.FileHandler
 	StoreInterval int
 	mx            sync.Mutex
-	conn          *dbworker.DBWorker
+	conn          *dbmanager.DBWorker
 }
 
 type Metric struct {
@@ -45,7 +45,7 @@ func NewCollector(ctx context.Context, cfg *config.ServerOptions, logger *zap.Lo
 		logger:        logger,
 		MemStorage:    model.NewMemStorage(),
 	}
-	clr.conn = dbworker.NewDBWorker(dbConnect)
+	clr.conn = dbmanager.NewDBWorker(dbConnect)
 	fileHandler, err := fh.NewFileHandler(cfg.FileStoragePath, logger)
 	if err != nil {
 		logger.Error("Ошибка создания обработчика файлов", zap.Error(err))
