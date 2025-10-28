@@ -247,7 +247,7 @@ func (c *Collector) SaveMetrics(ctx context.Context, metrics []*model.Metrics) (
 		}
 		metricsNew = append(metricsNew, metric)
 	}
-	if c.conn != nil {
+	if c.conn.DB != nil {
 		err := c.saveMetricsToDB(ctx, metricsNew)
 		if err != nil {
 			c.logger.Error("Ошибка сохранения метрик в БД", zap.Error(err))
