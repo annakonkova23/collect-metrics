@@ -2,14 +2,14 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"html/template"
-	"io"
-	"net/http"
-
 	"github.com/annakonkova23/collect-metrics/internal/model"
 	"github.com/annakonkova23/collect-metrics/internal/service"
 	"github.com/go-chi/chi/v5"
+	"html/template"
+	"io"
+	"net/http"
 
 	"go.uber.org/zap"
 )
@@ -22,9 +22,9 @@ func (s *Server) updateHandler(w http.ResponseWriter, r *http.Request) {
 	s.logger.Debug(fmt.Sprintf("updateHandler param:%s %s %s", paramName, paramType, paramValue))
 	err := s.Collector.SaveMetricsByParam(r.Context(), paramName, paramType, paramValue)
 	if err != nil {
-		if err == service.ErrorNotFound {
+		if errors.Is(err, service.ErrorNotFound) {
 			s.logger.Debug("Передаём ошибку 404")
-			http.Error(w, service.ErrorNotFound.Error(), http.StatusNotFound)
+			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		} else {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -146,9 +146,9 @@ func (s *Server) valueJSONHandler(w http.ResponseWriter, r *http.Request) {
 	metric.UnmarshalJSON(bodyBytes)
 	value, err := s.Collector.GetMetricJSON(metric.ID, metric.MType)
 	if err != nil {
-		if err == service.ErrorNotFound {
+		if errors.Is(err, service.ErrorNotFound) {
 			s.logger.Debug("Передаём ошибку 404")
-			http.Error(w, service.ErrorNotFound.Error(), http.StatusNotFound)
+			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		} else {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -162,13 +162,7 @@ func (s *Server) valueJSONHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) pingDBHandler(w http.ResponseWriter, r *http.Request) {
-	dbconn, err := s.DB.Connect(false)
-	if err != nil {
-		s.logger.Error("pingDB:" + err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	err = s.DB.Ping(dbconn)
+	err := s.Collector.PingDB()
 	if err != nil {
 		s.logger.Error("pingDB:" + err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)

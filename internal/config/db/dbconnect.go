@@ -1,30 +1,35 @@
 package db
 
 import (
-	"context"
 	"database/sql"
-	"errors"
-	"fmt"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
 )
 
 const (
 	dirScript = "./migrations"
 )
 
-type DBconnect struct {
-	connString string
-}
-
-func NewDbconnect(connString string) *DBconnect {
-	return &DBconnect{
-		connString: connString,
+func NewDBConnect(connString string) (*sql.DB, error) {
+	db, err := sql.Open("pgx", connString)
+	if err != nil {
+		return nil, err
 	}
+
+	// Настройка пула соединений
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(20)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
+	if err := db.Ping(); err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }
 
+/*
 func (db *DBconnect) Connect(createDB bool) (*sql.DB, error) {
 	if db == nil {
 		return nil, errors.New("db is nil")
@@ -52,3 +57,14 @@ func (db *DBconnect) Ping(sqlDB *sql.DB) error {
 	err := sqlDB.PingContext(ctx)
 	return err
 }
+
+func (db *DBconnect) isTransportError(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		if db.classificater.Classify(pgErr) == Retriable {
+			return true
+		}
+	}
+	return false
+}
+*/

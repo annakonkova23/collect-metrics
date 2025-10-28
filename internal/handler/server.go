@@ -2,12 +2,12 @@ package handler
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/annakonkova23/collect-metrics/internal/config"
-	"github.com/annakonkova23/collect-metrics/internal/config/db"
 	"github.com/annakonkova23/collect-metrics/internal/service"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type Server struct {
@@ -16,17 +16,15 @@ type Server struct {
 	Collector *service.Collector
 	Sugar     *zap.SugaredLogger
 	logger    *zap.Logger
-	DB        *db.DBconnect
 }
 
-func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logger, collector *service.Collector, db *db.DBconnect) (*Server, error) {
+func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logger, collector *service.Collector) (*Server, error) {
 	return &Server{
 		router:    chi.NewRouter(),
 		url:       cfg.Host,
 		Collector: collector,
 		Sugar:     logger.Sugar(),
 		logger:    logger,
-		DB:        db,
 	}, nil
 }
 

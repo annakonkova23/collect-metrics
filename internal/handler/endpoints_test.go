@@ -72,12 +72,12 @@ func TestServer_updateJsonHandler(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	dbConnect := db.NewDbconnect(cfg.DatabaseDSN)
+	dbConnect, _ := db.NewDBConnect(cfg.DatabaseDSN)
 	collector, err := service.NewCollector(ctx, cfg, logger, dbConnect)
 	if err != nil {
 		t.Errorf("Error on creating collector: %v", err)
 	}
-	s, err := NewServer(ctx, cfg, logger, collector, dbConnect)
+	s, err := NewServer(ctx, cfg, logger, collector)
 	if err != nil {
 		t.Errorf("Error on creating server: %v", err)
 	}

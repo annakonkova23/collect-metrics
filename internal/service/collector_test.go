@@ -52,7 +52,7 @@ func TestCollector_GetMetricJson(t *testing.T) {
 		},
 	}
 	cfg := &config.ServerOptions{}
-	dbConn := db.NewDbconnect(cfg.DatabaseDSN)
+	dbConn, _ := db.NewDBConnect(cfg.DatabaseDSN)
 	c, err := service.NewCollector(context.Background(), cfg, logger, dbConn)
 	if err != nil {
 		t.Errorf("Ошибка при создании сервиса: %v", err)

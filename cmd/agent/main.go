@@ -1,19 +1,18 @@
 package main
 
 import (
+	"context"
+	"errors"
+
 	"github.com/annakonkova23/collect-metrics/internal/config"
 	"github.com/annakonkova23/collect-metrics/internal/service"
 	"go.uber.org/zap"
 )
 
-const (
-	defaultReportInterval = 5
-	defaultHost           = "localhost:8080"
-	defaultPollInterval   = 2
-)
-
 func main() {
 	cfg := config.NewAgentOptions()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	URL := ""
 	logger, err := zap.NewDevelopment()
 	if err != nil {
@@ -21,28 +20,27 @@ func main() {
 		panic(err)
 	}
 	defer logger.Sync()
-	if cfg.Host != "" {
-		URL = "http://" + cfg.Host + "/updates/"
-		logger.Info("Параметры",
-			zap.String("URL", URL),
-		)
-	} else {
-		logger.Error("Не указан адрес")
-		panic("Не указан адрес")
+	var errs []error
+	if cfg.Host == "" {
+		msg := "Не указан адрес"
+		errs = append(errs, errors.New(msg))
 	}
 	if cfg.PollInterval <= 0 {
-		panic("Неверно указана частота опроса")
+		msg := "Неверно указана частота опроса"
+		errs = append(errs, errors.New(msg))
 	}
-	logger.Info("Параметры",
-		zap.Int("PollInterval", cfg.PollInterval),
-	)
 	if cfg.ReportInterval <= 0 {
-		panic("Неверно указана частота отправки")
+		msg := "Неверно указана частота отправки"
+		errs = append(errs, errors.New(msg))
 	}
-	logger.Info("Параметры",
-		zap.Int("ReportInterval", cfg.ReportInterval))
+	if len(errs) > 0 {
+		panic(errors.Join(errs...))
+	}
+
+	URL = "http://" + cfg.Host + "/updates/"
+	logger.Info("Параметры", zap.String("URL", URL), zap.Int("PollInterval", cfg.PollInterval), zap.Int("ReportInterval", cfg.ReportInterval))
 	sender := service.NewSender(URL, cfg.PollInterval, cfg.ReportInterval, logger)
 	logger.Info("Отправитель создан")
-	sender.Start()
+	sender.Start(ctx)
 
 }

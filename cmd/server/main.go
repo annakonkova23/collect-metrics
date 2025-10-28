@@ -32,12 +32,17 @@ func main() {
 		panic(err)
 	}
 	defer logger.Sync()
-	dbConnect := db.NewDbconnect(options.DatabaseDSN)
+	dbConnect, err := db.NewDBConnect(options.DatabaseDSN)
+	if err != nil {
+		logger.Error("Не удалось подключиться к БД", zap.Error(err))
+	} else {
+		defer dbConnect.Close()
+	}
 	collector, err := service.NewCollector(ctx, options, logger, dbConnect)
 	if err != nil {
 		panic(err)
 	}
-	h, err := handler.NewServer(ctx, options, logger, collector, dbConnect)
+	h, err := handler.NewServer(ctx, options, logger, collector)
 	if err != nil {
 		panic(err)
 	}
