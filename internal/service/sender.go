@@ -38,7 +38,6 @@ func (s *Sender) SendRequest(ctx context.Context, b chan bool) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			fmt.Println("11111111timer")
 			metrics := s.runMetric.GetMetrics()
 			if len(metrics) == 0 {
 				continue

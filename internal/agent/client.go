@@ -97,7 +97,7 @@ func (c *Client) PostWithBody(ctx context.Context, url string, body []byte) erro
 				return nil
 			case <-time.After(time.Duration(delay) * time.Second):
 				delay = delay + delayAttempt
-				continue // Переходим к следующей попытке
+				continue
 			}
 		}
 	}
@@ -112,8 +112,8 @@ func (c *Client) PostWithBody(ctx context.Context, url string, body []byte) erro
 
 func (c *Client) WithLoggingResponse(client *resty.Client, response *resty.Response) error {
 	c.Sugar.Infoln(
-		"status", response.Status(), // получаем перехваченный код статуса ответа
-		"size", response.Size(), // получаем перехваченный размер ответа
+		"status", response.Status(),
+		"size", response.Size(),
 		"content-type", response.Header().Get("Content-Type"),
 		"content-encoding", response.Header().Get("Content-Encoding"),
 	)
@@ -136,7 +136,6 @@ func (c *Client) isTemporaryResponseError(err error, resp *resty.Response) bool 
 func (c *Client) isConnectionRefused(err error) bool {
 	var opErr *net.OpError
 	if errors.As(err, &opErr) {
-		// Проверяем, содержит ли сообщение ключевые слова
 		if opErr.Err != nil &&
 			(strings.Contains(opErr.Err.Error(), "actively refused") ||
 				strings.Contains(opErr.Err.Error(), "connection refused")) {

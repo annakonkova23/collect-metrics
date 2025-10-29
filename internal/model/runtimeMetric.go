@@ -1,8 +1,6 @@
 package model
 
 import (
-	//"encoding/json"
-	//"fmt"
 	"go.uber.org/zap"
 	"math/rand"
 	"runtime"
