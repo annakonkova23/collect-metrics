@@ -24,23 +24,22 @@ func (ms *MemStorage) SetMetric(metric *Metrics) (*Metrics, error) {
 	var errs []error
 
 	if metric.ID == "" {
-		msg := "Имя метрики не может быть пустым"
-		errs = append(errs, errors.New(msg))
+		errs = append(errs, errors.New("имя метрики не может быть пустым"))
 	}
 
 	if metric.MType != Counter && metric.MType != Gauge {
-		msg := fmt.Sprintf("Некорректный тип метрики[%s]", metric.MType)
+		msg := fmt.Sprintf("некорректный тип метрики[%s]", metric.MType)
 		errs = append(errs, errors.New(msg))
 	}
 
 	if metric.MType == Counter {
 		if metric.Delta == nil {
-			msg := fmt.Sprintf("Некорректное значение метрики [%s]", metric.ID)
+			msg := fmt.Sprintf("некорректное значение метрики [%s]", metric.ID)
 			errs = append(errs, errors.New(msg))
 		}
 	} else if metric.MType == Gauge {
 		if metric.Value == nil {
-			msg := fmt.Sprintf("Некорректное значение метрики [%s]", metric.ID)
+			msg := fmt.Sprintf("некорректное значение метрики [%s]", metric.ID)
 			errs = append(errs, errors.New(msg))
 		}
 	}

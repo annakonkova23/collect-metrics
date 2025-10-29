@@ -22,15 +22,15 @@ func main() {
 	defer logger.Sync()
 	var errs []error
 	if cfg.Host == "" {
-		msg := "Не указан адрес"
+		msg := "не указан адрес"
 		errs = append(errs, errors.New(msg))
 	}
 	if cfg.PollInterval <= 0 {
-		msg := "Неверно указана частота опроса"
+		msg := "неверно указана частота опроса"
 		errs = append(errs, errors.New(msg))
 	}
 	if cfg.ReportInterval <= 0 {
-		msg := "Неверно указана частота отправки"
+		msg := "неверно указана частота отправки"
 		errs = append(errs, errors.New(msg))
 	}
 	if len(errs) > 0 {
