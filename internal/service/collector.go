@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/annakonkova23/collect-metrics/internal/config"
+	"github.com/annakonkova23/collect-metrics/internal/config/db"
 	"github.com/annakonkova23/collect-metrics/internal/model"
 	fh "github.com/annakonkova23/collect-metrics/internal/service/fileHandler"
 	"go.uber.org/zap"
@@ -23,6 +25,7 @@ type Collector struct {
 	fileHandler   *fh.FileHandler
 	StoreInterval int
 	mx            sync.Mutex
+	conn          *sql.DB
 }
 
 type Metric struct {
@@ -31,27 +34,49 @@ type Metric struct {
 	Value string
 }
 
-func NewCollector(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logger) (*Collector, error) {
+func NewCollector(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logger, dbConnect *db.DBconnect) (*Collector, error) {
 	clr := &Collector{
-		fileHandler:   fh.NewFileHandler(cfg.FileStoragePath, logger),
 		StoreInterval: cfg.StoreInterval,
 		logger:        logger,
 		MemStorage:    model.NewMemStorage(),
 	}
-	if cfg.Restore {
-		clr.logger.Info("Инициализация метрик", zap.Bool("Restore", cfg.Restore))
-		err := clr.initMemStorage()
-		if err != nil {
-			return nil, err
+	dbConn, err := dbConnect.Connect(true)
+	if err != nil {
+		logger.Error("Ошибка открытия подключения к БД", zap.Error(err))
+	} else {
+		if err := dbConnect.Ping(dbConn); err != nil {
+			logger.Error("Ошибка подключения к БД", zap.Error(err))
+		} else {
+			clr.conn = dbConn
 		}
 	}
-	if cfg.StoreInterval > 0 {
+	fileHandler, err := fh.NewFileHandler(cfg.FileStoragePath, logger)
+	if err != nil {
+		logger.Error("Ошибка создания обработчика файлов", zap.Error(err))
+	} else {
+		clr.fileHandler = fileHandler
+	}
+	if cfg.Restore {
+		clr.logger.Info("Инициализация метрик", zap.Bool("Restore", cfg.Restore))
+		if clr.conn != nil {
+			if err := clr.initMemStorageFromDB(ctx); err != nil {
+				return nil, err
+			}
+		} else if fileHandler != nil {
+			if err := clr.initMemStorageFromFile(); err != nil {
+				return nil, err
+			}
+		} else {
+			clr.logger.Warn("Инициализация метрик не выполнена, так как не указан способ восстановления метрик")
+		}
+	}
+	if clr.conn == nil && cfg.StoreInterval > 0 && clr.fileHandler != nil {
 		go clr.ProcessUploadFile(ctx)
 	}
 	return clr, nil
 }
 
-func (c *Collector) initMemStorage() error {
+func (c *Collector) initMemStorageFromFile() error {
 	data := c.fileHandler.LoadFromFile()
 	var metrics []*model.Metrics
 	if len(data) > 0 {
@@ -62,6 +87,42 @@ func (c *Collector) initMemStorage() error {
 		}
 		c.MemStorage.InitMetrics(metrics)
 
+	}
+	return nil
+}
+
+func (c *Collector) initMemStorageFromDB(ctx context.Context) error {
+	var metrics []*model.Metrics
+	var data sql.NullString
+	rows, err := c.conn.QueryContext(ctx, `select json_strip_nulls(json_agg(json_build_object(
+													'id',code,
+													'type',type_metric,
+													'value',gauge_value,
+													'delta',counter_value)))
+											from storage.metrics_value`)
+	if err != nil {
+		c.logger.Error("Ошибка запроса метрик из БД", zap.Error(err))
+		return nil
+	}
+	defer rows.Close()
+	for rows.Next() {
+		if err := rows.Scan(&data); err != nil {
+			c.logger.Error("Ошибка сканирования данных", zap.Error(err))
+			return err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		c.logger.Error("Ошибка чтения строк", zap.Error(err))
+		return nil
+	}
+	if data.Valid {
+		if err := json.Unmarshal([]byte(data.String), &metrics); err != nil {
+			msg := fmt.Sprintf("Ошибка парсинга метрик в структуру: %s", err.Error())
+			return fmt.Errorf("%s", msg)
+		}
+	}
+	if len(metrics) > 0 {
+		c.MemStorage.InitMetrics(metrics)
 	}
 	return nil
 }
@@ -97,7 +158,10 @@ func (c *Collector) SaveMetric(metric *model.Metrics) (*model.Metrics, error) {
 	if err != nil {
 		return nil, err
 	}
-	if c.StoreInterval == 0 {
+	if c.conn != nil {
+		c.SaveMetricToDB(metric)
+	}
+	if c.StoreInterval == 0 && c.fileHandler != nil {
 		c.GetDataAndSaveToFile()
 	}
 	return metric, nil
@@ -153,7 +217,6 @@ func (c *Collector) ProcessUploadFile(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			c.GetDataAndSaveToFile()
 			c.logger.Info("Прерывание процесса сохранения в файл")
 			return
 		case <-timer.C:
@@ -163,6 +226,9 @@ func (c *Collector) ProcessUploadFile(ctx context.Context) {
 }
 
 func (c *Collector) GetDataAndSaveToFile() {
+	if c.fileHandler == nil {
+		return
+	}
 	metrics := c.MemStorage.GetMetricAllValues()
 	js, err := json.Marshal(metrics)
 	if err != nil {
@@ -171,5 +237,19 @@ func (c *Collector) GetDataAndSaveToFile() {
 	err = c.fileHandler.SaveToFile(js)
 	if err != nil {
 		c.logger.Error("Ошибка сохранения файла", zap.Error(err))
+	}
+}
+
+func (c *Collector) SaveMetricToDB(metric *model.Metrics) {
+	res, err := c.conn.ExecContext(context.Background(), `
+			insert into storage.metrics_value(code,type_metric, gauge_value, counter_value) 
+			values ($1, $2, $3, $4) on conflict (code,type_metric) 
+			do update set gauge_value = $5, counter_value = $6`, metric.ID, metric.MType, metric.Value, metric.Delta, metric.Value, metric.Delta)
+	if err != nil {
+		c.logger.Error("Ошибка сохранения метрики в БД", zap.Error(err))
+	}
+	if res != nil {
+		rowsAffected, _ := res.RowsAffected()
+		c.logger.Info("Метрика сохранена в БД", zap.Int64("количество обновленных строк", rowsAffected))
 	}
 }

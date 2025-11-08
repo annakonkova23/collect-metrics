@@ -158,7 +158,7 @@ func (s *Server) valueJSONHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) pingDBHandler(w http.ResponseWriter, r *http.Request) {
-	dbconn, err := s.DB.Connect()
+	dbconn, err := s.DB.Connect(false)
 	if err != nil {
 		s.logger.Error("pingDB:" + err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -2,13 +2,13 @@ package service_test
 
 import (
 	"context"
-	"testing"
-
 	"github.com/annakonkova23/collect-metrics/internal/config"
+	"github.com/annakonkova23/collect-metrics/internal/config/db"
 	"github.com/annakonkova23/collect-metrics/internal/model"
 	"github.com/annakonkova23/collect-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+	"testing"
 )
 
 func TestCollector_GetMetricJson(t *testing.T) {
@@ -52,7 +52,8 @@ func TestCollector_GetMetricJson(t *testing.T) {
 		},
 	}
 	cfg := &config.ServerOptions{}
-	c, err := service.NewCollector(context.Background(), cfg, logger)
+	dbConn := db.NewDbconnect(cfg.DatabaseDSN)
+	c, err := service.NewCollector(context.Background(), cfg, logger, dbConn)
 	if err != nil {
 		t.Errorf("Ошибка при создании сервиса: %v", err)
 	}

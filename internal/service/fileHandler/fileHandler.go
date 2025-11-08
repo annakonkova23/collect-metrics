@@ -15,11 +15,14 @@ type FileHandler struct {
 	logger   *zap.Logger
 }
 
-func NewFileHandler(filePath string, logger *zap.Logger) *FileHandler {
+func NewFileHandler(filePath string, logger *zap.Logger) (*FileHandler, error) {
+	if filePath == "" {
+		return nil, fmt.Errorf("путь к файлу не может быть пустым")
+	}
 	return &FileHandler{
 		filePath: filePath,
 		logger:   logger,
-	}
+	}, nil
 }
 
 func (fh *FileHandler) createTempFileInSameDirectory(targetPath string) (*os.File, error) {

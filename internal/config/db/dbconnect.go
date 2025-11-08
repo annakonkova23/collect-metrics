@@ -4,9 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
+)
+
+const (
+	dirScript = "./migrations"
 )
 
 type DBconnect struct {
@@ -19,12 +25,25 @@ func NewDbconnect(connString string) *DBconnect {
 	}
 }
 
-func (db *DBconnect) Connect() (*sql.DB, error) {
+func (db *DBconnect) Connect(createDB bool) (*sql.DB, error) {
 	if db == nil {
 		return nil, errors.New("db is nil")
 	}
 	sqlDB, err := sql.Open("pgx", db.connString)
+	if createDB {
+		if err := db.CreateObjectDB(sqlDB); err != nil {
+			return nil, err
+		}
+	}
 	return sqlDB, err
+}
+
+func (db *DBconnect) CreateObjectDB(sqlDB *sql.DB) error {
+	if err := goose.Up(sqlDB, dirScript); err != nil {
+		msg := fmt.Sprintf("Ошибка создания объектов БД %s", err.Error())
+		return errors.New(msg)
+	}
+	return nil
 }
 
 func (db *DBconnect) Ping(sqlDB *sql.DB) error {

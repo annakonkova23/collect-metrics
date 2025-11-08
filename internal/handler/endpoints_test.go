@@ -73,7 +73,7 @@ func TestServer_updateJsonHandler(t *testing.T) {
 	}
 	ctx := context.Background()
 	dbConnect := db.NewDbconnect(cfg.DatabaseDSN)
-	collector, err := service.NewCollector(ctx, cfg, logger)
+	collector, err := service.NewCollector(ctx, cfg, logger, dbConnect)
 	if err != nil {
 		t.Errorf("Error on creating collector: %v", err)
 	}
