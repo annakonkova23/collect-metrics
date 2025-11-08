@@ -194,7 +194,11 @@ func (s *Server) updateSeveralJSONHandler(w http.ResponseWriter, r *http.Request
 		s.logger.Error(err.Error(), zap.String("Body", string(bodyBytes)))
 	}
 	w.Header().Set("Content-Type", "application/json")
-	value, _ := json.Marshal(metrics)
+	value, err := json.Marshal(metrics)
+	if err != nil {
+		s.logger.Error("Некорректная структура:" + err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(value)
 

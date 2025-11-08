@@ -19,7 +19,7 @@ func NewDBConnect(connString string) (*sql.DB, error) {
 
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(20)
-	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxLifetime(3 * time.Minute)
 
 	if err := db.Ping(); err != nil {
 		return nil, err

@@ -10,7 +10,7 @@ import (
 )
 
 type FileHandler struct {
-	mx       sync.Mutex
+	mx       sync.RWMutex
 	filePath string
 	logger   *zap.Logger
 }

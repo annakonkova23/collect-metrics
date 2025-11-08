@@ -16,7 +16,6 @@ func main() {
 	URL := ""
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		logger.Error(err.Error())
 		panic(err)
 	}
 	defer logger.Sync()
@@ -39,7 +38,7 @@ func main() {
 
 	URL = "http://" + cfg.Host + "/updates/"
 	logger.Info("Параметры", zap.String("URL", URL), zap.Int("PollInterval", cfg.PollInterval), zap.Int("ReportInterval", cfg.ReportInterval))
-	sender := service.NewSender(URL, cfg.PollInterval, cfg.ReportInterval, logger)
+	sender := service.NewSender(URL, cfg.PollInterval, cfg.ReportInterval, cfg.Key, logger)
 	logger.Info("Отправитель создан")
 	sender.Start(ctx)
 

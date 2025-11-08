@@ -3,11 +3,16 @@ package handler
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type CustomResponseWriter struct {
@@ -45,6 +50,31 @@ func (crw *CustomResponseWriter) Write(b []byte) (int, error) {
 	return crw.buf.Write(b)
 }
 
+func (s *Server) EqualHash(r *http.Request) bool {
+	if s.key == "" {
+		return true
+	}
+	receivedHash := r.Header.Get("HashSHA256")
+	if receivedHash == "" {
+		s.logger.Error("Не получен хеш")
+		return true
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		s.logger.Error("Ошибка чтения тела", zap.Error(err))
+		return true
+	}
+	r.Body = io.NopCloser(bytes.NewReader(body))
+
+	h := hmac.New(sha256.New, []byte(s.key))
+	h.Write(body)
+	expectedHash := h.Sum(nil)
+	expectedHashHex := hex.EncodeToString(expectedHash)
+	return hmac.Equal([]byte(expectedHashHex), []byte(receivedHash))
+
+}
+
 func (s *Server) WithLoggingAndCompress(h http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -54,6 +84,12 @@ func (s *Server) WithLoggingAndCompress(h http.Handler) http.HandlerFunc {
 		newReq, err := s.decodeRequest(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if !s.EqualHash(newReq) {
+			http.Error(w, "Хеши не совпадают", http.StatusBadRequest)
+			return
 		}
 
 		crw := NewCustomResponseWriter(w)

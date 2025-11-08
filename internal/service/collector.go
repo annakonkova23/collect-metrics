@@ -29,7 +29,7 @@ type Collector struct {
 	logger        *zap.Logger
 	fileHandler   *fh.FileHandler
 	StoreInterval int
-	mx            sync.Mutex
+	mx            sync.RWMutex
 	conn          *dbmanager.DBManager
 }
 

@@ -33,18 +33,6 @@ func NewClient(sugar *zap.SugaredLogger) *Client {
 	}
 }
 
-type (
-	responseData struct {
-		status int
-		size   int
-	}
-
-	loggingResponseWriter struct {
-		http.ResponseWriter
-		responseData *responseData
-	}
-)
-
 func (c *Client) Post(url string) error {
 	c.client.OnAfterResponse(c.WithLoggingResponse)
 	response, err := c.client.R().
@@ -61,12 +49,11 @@ func (c *Client) Post(url string) error {
 	return nil
 }
 
-func (c *Client) PostWithBody(ctx context.Context, url string, body []byte) error {
+func (c *Client) PostWithBody(ctx context.Context, url string, body []byte, hash string) error {
 	delay := 1
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	defer gz.Close()
-
 	if _, err := gz.Write(body); err != nil {
 		return err
 	}
@@ -82,6 +69,7 @@ func (c *Client) PostWithBody(ctx context.Context, url string, body []byte) erro
 			SetHeader("Content-Type", "application/json").
 			SetHeader("Content-Length", strconv.Itoa(buf.Len())).
 			SetHeader("Accept-Encoding", "gzip").
+			SetHeader("HashSHA256", hash).
 			SetBody(buf.Bytes()).
 			Post(url)
 
