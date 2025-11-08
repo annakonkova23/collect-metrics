@@ -1,12 +1,13 @@
 package handler
 
 import (
-	"net/http"
-
+	"context"
 	"github.com/annakonkova23/collect-metrics/internal/config"
+	"github.com/annakonkova23/collect-metrics/internal/config/db"
 	"github.com/annakonkova23/collect-metrics/internal/service"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
+	"net/http"
 )
 
 type Server struct {
@@ -15,19 +16,17 @@ type Server struct {
 	Collector *service.Collector
 	Sugar     *zap.SugaredLogger
 	logger    *zap.Logger
+	DB        *db.DBconnect
 }
 
-func NewServer(cfg *config.ServerOptions, logger *zap.Logger) (*Server, error) {
-	collector, err := service.NewCollector(cfg, logger)
-	if err != nil {
-		return nil, err
-	}
+func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logger, collector *service.Collector, db *db.DBconnect) (*Server, error) {
 	return &Server{
 		router:    chi.NewRouter(),
 		url:       cfg.Host,
 		Collector: collector,
 		Sugar:     logger.Sugar(),
 		logger:    logger,
+		DB:        db,
 	}, nil
 }
 
@@ -37,6 +36,7 @@ func (s *Server) StartAndListen() error {
 	s.router.Get("/value/{type}/{name}", s.WithLoggingAndCompress(http.HandlerFunc(s.valueHandler)))
 	s.router.Get("/", s.WithLoggingAndCompress(http.HandlerFunc(s.allValuesHandler)))
 	s.router.Post("/value/", s.WithLoggingAndCompress(http.HandlerFunc(s.valueJSONHandler)))
+	s.router.Get("/ping", s.WithLoggingAndCompress(http.HandlerFunc(s.pingDBHandler)))
 	if err := http.ListenAndServe(s.url, s.router); err != nil {
 		return err
 	}

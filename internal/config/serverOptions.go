@@ -11,6 +11,7 @@ const (
 	defaultStoreInterval   = 300
 	defaultRestore         = true
 	defaultFileStoragePath = "metrics.json"
+	defaultDBDSN           = "host=localhost port=5432 user=postgres password=anna dbname=metricsdb sslmode=disable"
 )
 
 type ServerOptions struct {
@@ -18,6 +19,7 @@ type ServerOptions struct {
 	StoreInterval   int
 	Restore         bool
 	FileStoragePath string
+	DatabaseDSN     string
 }
 
 func getEnvString(envKey, defaultValue string) string {
@@ -50,6 +52,7 @@ func NewServerOptions() *ServerOptions {
 	storeIntervalFlag := flag.Int("i", defaultStoreInterval, "Интервал сохранения данных (сек)")
 	restoreFlag := flag.Bool("r", defaultRestore, "Восстанавливать данные из файла")
 	fileStoragePathFlag := flag.String("f", defaultFileStoragePath, "Путь к файлу хранения")
+	databaseDSNFlag := flag.String("d", defaultDBDSN, "Aдрес подключения к БД")
 
 	flag.Parse()
 
@@ -57,17 +60,20 @@ func NewServerOptions() *ServerOptions {
 	storeInterval := *storeIntervalFlag
 	restore := *restoreFlag
 	fileStoragePath := *fileStoragePathFlag
+	databaseDSN := *databaseDSNFlag
 
 	host = getEnvString("ADDRESS", host)
 	storeInterval = getEnvInt("STORE_INTERVAL", storeInterval)
 	restore = getEnvBool("RESTORE", restore)
 	fileStoragePath = getEnvString("FILE_STORAGE_PATH", fileStoragePath)
+	databaseDSN = getEnvString("DATABASE_DSN", databaseDSN)
 
 	return &ServerOptions{
 		Host:            host,
 		StoreInterval:   storeInterval,
 		Restore:         restore,
 		FileStoragePath: fileStoragePath,
+		DatabaseDSN:     databaseDSN,
 	}
 
 }

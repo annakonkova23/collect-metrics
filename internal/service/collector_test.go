@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/annakonkova23/collect-metrics/internal/config"
@@ -51,7 +52,7 @@ func TestCollector_GetMetricJson(t *testing.T) {
 		},
 	}
 	cfg := &config.ServerOptions{}
-	c, err := service.NewCollector(cfg, logger)
+	c, err := service.NewCollector(context.Background(), cfg, logger)
 	if err != nil {
 		t.Errorf("Ошибка при создании сервиса: %v", err)
 	}
