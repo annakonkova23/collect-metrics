@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -20,54 +21,62 @@ func NewMemStorage() *MemStorage {
 }
 
 func (ms *MemStorage) SetMetric(metric *Metrics) (*Metrics, error) {
+	var errs []error
+
 	if metric.ID == "" {
-		return nil, fmt.Errorf("%s", "Имя метрики не может быть пустым")
+		errs = append(errs, errors.New("имя метрики не может быть пустым"))
 	}
+
 	if metric.MType != Counter && metric.MType != Gauge {
-		msg := fmt.Sprintf("Некорректный тип метрики[%s]", metric.MType)
-		return nil, fmt.Errorf("%s", msg)
+		msg := fmt.Sprintf("некорректный тип метрики[%s]", metric.MType)
+		errs = append(errs, errors.New(msg))
 	}
-	ms.mx.Lock()
-	defer ms.mx.Unlock()
-	idx := slices.IndexFunc(ms.metrics, func(m *Metrics) bool {
-		if m.ID == metric.ID && m.MType == metric.MType {
-			return true
-		}
-		return false
-	})
-	var metricResult *Metrics
+
 	if metric.MType == Counter {
 		if metric.Delta == nil {
-			msg := fmt.Sprintf("Некорректное значение метрики [%s]", metric.ID)
-			return nil, fmt.Errorf("%s", msg)
-		} else {
-			if idx >= 0 {
-				if ms.metrics[idx].Delta != nil {
-					delta := *ms.metrics[idx].Delta + *metric.Delta
-					ms.metrics[idx].Delta = &delta
-					metricResult = ms.metrics[idx].Copy()
-				}
-			} else {
-				ms.metrics = append(ms.metrics, metric)
-				metricResult = metric
-			}
-
+			msg := fmt.Sprintf("некорректное значение метрики [%s]", metric.ID)
+			errs = append(errs, errors.New(msg))
+		}
+	} else if metric.MType == Gauge {
+		if metric.Value == nil {
+			msg := fmt.Sprintf("некорректное значение метрики [%s]", metric.ID)
+			errs = append(errs, errors.New(msg))
 		}
 	}
 
-	if metric.MType == Gauge {
-		if metric.Value == nil {
-			msg := fmt.Sprintf("Некорректное значение метрики [%s]", metric.ID)
-			return nil, fmt.Errorf("%s", msg)
-		} else {
-			if idx >= 0 {
-				value := *metric.Value
-				ms.metrics[idx].Value = &value
+	// Если есть ошибки, возвращаем их объединение
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
+	}
+
+	ms.mx.Lock()
+	defer ms.mx.Unlock()
+
+	idx := slices.IndexFunc(ms.metrics, func(m *Metrics) bool {
+		return m.ID == metric.ID && m.MType == metric.MType
+	})
+
+	var metricResult *Metrics
+
+	if metric.MType == Counter {
+		if idx >= 0 {
+			if ms.metrics[idx].Delta != nil {
+				delta := *ms.metrics[idx].Delta + *metric.Delta
+				ms.metrics[idx].Delta = &delta
 				metricResult = ms.metrics[idx].Copy()
-			} else {
-				ms.metrics = append(ms.metrics, metric)
-				metricResult = metric
 			}
+		} else {
+			ms.metrics = append(ms.metrics, metric)
+			metricResult = metric
+		}
+	} else if metric.MType == Gauge {
+		if idx >= 0 {
+			value := *metric.Value
+			ms.metrics[idx].Value = &value
+			metricResult = ms.metrics[idx].Copy()
+		} else {
+			ms.metrics = append(ms.metrics, metric)
+			metricResult = metric
 		}
 	}
 

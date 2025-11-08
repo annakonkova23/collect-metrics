@@ -61,7 +61,7 @@ func (fh *FileHandler) SaveToFile(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("ошибка создания временного файла: %w", err)
 	}
-	defer os.Remove(tmpFile.Name()) // Удаляем, если что-то пошло не так
+	defer os.Remove(tmpFile.Name())
 
 	if _, err := tmpFile.Write(data); err != nil {
 		return fmt.Errorf("ошибка записи во временный файл: %w", err)
