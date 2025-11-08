@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -19,7 +20,7 @@ func (s *Server) updateHandler(w http.ResponseWriter, r *http.Request) {
 	paramType := chi.URLParam(r, "type")
 	paramValue := chi.URLParam(r, "value")
 	s.logger.Debug(fmt.Sprintf("updateHandler param:%s %s %s", paramName, paramType, paramValue))
-	err := s.Collector.SaveMetricsByParam(paramName, paramType, paramValue)
+	err := s.Collector.SaveMetricsByParam(r.Context(), paramName, paramType, paramValue)
 	if err != nil {
 		if err == service.ErrorNotFound {
 			s.logger.Debug("Передаём ошибку 404")
@@ -48,12 +49,15 @@ func (s *Server) updateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	s.logger.Debug("updateJsonHandler BODY:" + string(bodyBytes))
 	metric := &model.Metrics{}
 	metric.UnmarshalJSON(bodyBytes)
-	metric, err = s.Collector.SaveMetric(metric)
+	metrics, err := s.Collector.SaveMetrics(r.Context(), []*model.Metrics{metric})
 	if err != nil {
 		s.logger.Error(err.Error(), zap.String("Body", string(bodyBytes)))
 	}
 	w.Header().Set("Content-Type", "application/json")
-	value, _ := metric.MarshalJSON()
+	var value []byte
+	if len(metrics) > 0 {
+		value, _ = metrics[0].MarshalJSON()
+	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(value)
 
@@ -171,4 +175,33 @@ func (s *Server) pingDBHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) updateSeveralJSONHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("Content-Type") != "application/json" {
+		s.logger.Error("Неверный Content-Type")
+		http.Error(w, "Неверный Content-Type", http.StatusBadRequest)
+		return
+	}
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		s.logger.Error(err.Error())
+	}
+	defer r.Body.Close()
+	s.logger.Debug("updateJsonHandler BODY:" + string(bodyBytes))
+	metrics := []*model.Metrics{}
+	err = json.Unmarshal(bodyBytes, &metrics)
+	if err != nil {
+		s.logger.Error("Некорректный json:" + err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	metrics, err = s.Collector.SaveMetrics(r.Context(), metrics)
+	if err != nil {
+		s.logger.Error(err.Error(), zap.String("Body", string(bodyBytes)))
+	}
+	w.Header().Set("Content-Type", "application/json")
+	value, _ := json.Marshal(metrics)
+	w.WriteHeader(http.StatusOK)
+	w.Write(value)
+
 }
