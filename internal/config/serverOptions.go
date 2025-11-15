@@ -14,7 +14,7 @@ const (
 	//defaultFileStoragePath = "metrics.json"
 	//defaultDBDSN = ""
 	defaultDBDSN = "postgres://postgres:anna@localhost:5432/metricsdb?sslmode=disable" //"host=localhost port=5432 user=postgres password=anna dbname=metricsdb sslmode=disable"
-	defaultKey   = ""
+	defaultKey   = "key"
 )
 
 type ServerOptions struct {
