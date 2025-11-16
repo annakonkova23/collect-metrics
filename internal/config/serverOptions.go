@@ -57,7 +57,7 @@ func NewServerOptions() *ServerOptions {
 	restoreFlag := flag.Bool("r", defaultRestore, "Восстанавливать данные из файла")
 	fileStoragePathFlag := flag.String("f", defaultFileStoragePath, "Путь к файлу хранения")
 	databaseDSNFlag := flag.String("d", defaultDBDSN, "Aдрес подключения к БД")
-	keyFlag := flag.String("k", "key", "Ключ для хеша")
+	keyFlag := flag.String("k", defaultKey, "Ключ для хеша")
 	flag.Parse()
 
 	host := *hostFlag

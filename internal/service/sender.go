@@ -58,7 +58,6 @@ func (s *Sender) GetHash(body []byte) string {
 	if s.key == "" {
 		return ""
 	}
-	fmt.Println("key: ", s.key)
 	secretKey := []byte(s.key)
 	h := hmac.New(sha256.New, secretKey)
 	h.Write([]byte(body))
@@ -77,7 +76,7 @@ func (s *Sender) Start(ctx context.Context, numWorkers int) {
 	go s.updMetric.UpateUtilMetric(ctx, chCalc)
 	go s.updMetric.UpdateRuntimeMetric(ctx, chCalc)
 	s.chCalc = make(chan []byte, 2)
-	for i := 0; i < numWorkers; i++ {
+	for range numWorkers {
 		go s.SendRequest(ctx, chCalc)
 	}
 
