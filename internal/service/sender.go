@@ -19,7 +19,6 @@ type Sender struct {
 	reportInterval int
 	logger         *zap.Logger
 	key            string
-	chCalc         chan []byte
 }
 
 func NewSender(url string, pollInterval, reportInterval int, key string, logger *zap.Logger) *Sender {
@@ -75,7 +74,6 @@ func (s *Sender) Start(ctx context.Context, numWorkers int) {
 	chCalc := make(chan []byte)
 	go s.updMetric.UpateUtilMetric(ctx, chCalc)
 	go s.updMetric.UpdateRuntimeMetric(ctx, chCalc)
-	s.chCalc = make(chan []byte, 2)
 	for range numWorkers {
 		go s.SendRequest(ctx, chCalc)
 	}
