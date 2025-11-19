@@ -32,8 +32,7 @@ func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logge
 }
 
 func (s *Server) StartAndListen() error {
-	mw.Key = s.key
-	s.router.Use(mw.WithLogging, mw.WithCompress, mw.WithCheckHash)
+	s.router.Use(mw.WithLogging, mw.WithCompress, mw.WithCheckHash(s.key))
 	s.router.Post("/update/{type}/{name}/{value}", s.updateHandler)
 	s.router.Post("/update/", s.updateJSONHandler)
 	s.router.Get("/value/{type}/{name}", s.valueHandler)

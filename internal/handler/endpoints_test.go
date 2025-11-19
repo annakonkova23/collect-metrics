@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"context"
+	"log"
 
 	//"fmt"
 	"net/http"
@@ -24,7 +25,7 @@ func TestServer_updateJsonHandler(t *testing.T) {
 
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer logger.Sync()
 	cfg := config.NewServerOptions()

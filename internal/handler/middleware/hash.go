@@ -5,46 +5,47 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io"
 	"net/http"
 )
 
-var (
-	Key string
-)
-
-func EqualHash(r *http.Request) bool {
-	if Key == "" {
-		return true
+func equalHash(r *http.Request, key string) error {
+	if key == "" {
+		return nil
 	}
 	receivedHash := r.Header.Get("HashSHA256")
 	if receivedHash == "" {
-		return true
+		return nil
 	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		return true
+		return err
 	}
 	r.Body = io.NopCloser(bytes.NewReader(body))
 
-	h := hmac.New(sha256.New, []byte(Key))
+	h := hmac.New(sha256.New, []byte(key))
 	h.Write(body)
 	expectedHash := h.Sum(nil)
 	expectedHashHex := hex.EncodeToString(expectedHash)
-	return hmac.Equal([]byte(expectedHashHex), []byte(receivedHash))
+	if !hmac.Equal([]byte(expectedHashHex), []byte(receivedHash)) {
+		return errors.New("хеши не совпадают")
+	}
+	return nil
 
 }
 
-func WithCheckHash(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func WithCheckHash(key string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		if !EqualHash(r) {
-			http.Error(w, "Хеши не совпадают", http.StatusBadRequest)
-			return
-		}
+			if err := equalHash(r, key); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 
-		h.ServeHTTP(w, r)
-
-	})
+			next.ServeHTTP(w, r)
+		})
+	}
 }

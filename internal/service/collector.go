@@ -12,8 +12,8 @@ import (
 
 	"github.com/annakonkova23/collect-metrics/internal/config"
 	"github.com/annakonkova23/collect-metrics/internal/model"
-	dbmanager "github.com/annakonkova23/collect-metrics/internal/service/dbManager"
-	fh "github.com/annakonkova23/collect-metrics/internal/service/fileHandler"
+	dbmanager "github.com/annakonkova23/collect-metrics/internal/service/dbmanager"
+	fh "github.com/annakonkova23/collect-metrics/internal/service/filehandler"
 	"go.uber.org/zap"
 )
 

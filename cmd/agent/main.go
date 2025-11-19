@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,17 +15,21 @@ import (
 
 func main() {
 	cfg := config.NewAgentOptions()
-	ctx, cancel := context.WithCancel(context.Background())
+
+	ctx, stop := signal.NotifyContext(context.Background(),
+		os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	URL := ""
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer logger.Sync()
 
 	err = checkCfg(cfg)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	URL = "http://" + cfg.Host + "/updates/"
@@ -39,11 +44,8 @@ func main() {
 
 	sender.Start(ctx, cfg.RateLimiter)
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	<-c
+	<-ctx.Done()
 	logger.Info("Получен сигнал. Отмена...")
-	cancel()
 
 }
 

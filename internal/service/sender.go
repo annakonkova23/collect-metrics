@@ -43,7 +43,7 @@ func (s *Sender) SendRequest(ctx context.Context, bodys <-chan []byte) {
 			for body := range bodys {
 				s.logger.Info(fmt.Sprintf("Запрос %s", string(body)))
 				if err := s.client.PostWithBody(ctx, s.url, body, s.GetHash(body)); err != nil {
-					s.logger.Info(fmt.Sprintf("Ошибка отправки метрики %s: %v", string(body), err))
+					s.logger.Error(fmt.Sprintf("Ошибка отправки метрики %s: %v", string(body), err))
 				} else {
 					s.logger.Info("Успешный ответ")
 				}
@@ -71,7 +71,7 @@ func (s *Sender) GetURLForMetric(name, typeM, value string) string {
 
 func (s *Sender) Start(ctx context.Context, numWorkers int) {
 	s.logger.Info("Старт отправления метрик")
-	chCalc := make(chan []byte)
+	chCalc := make(chan []byte, numWorkers)
 	go s.updMetric.UpateUtilMetric(ctx, chCalc)
 	go s.updMetric.UpdateRuntimeMetric(ctx, chCalc)
 	for range numWorkers {
