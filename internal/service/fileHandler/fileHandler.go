@@ -2,11 +2,12 @@ package filehandler
 
 import (
 	"fmt"
-	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"go.uber.org/zap"
 )
 
 type FileHandler struct {
