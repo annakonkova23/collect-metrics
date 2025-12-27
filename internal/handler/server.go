@@ -16,6 +16,7 @@ type Server struct {
 	Collector *service.Collector
 	Sugar     *zap.SugaredLogger
 	logger    *zap.Logger
+	key       string
 }
 
 func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logger, collector *service.Collector) (*Server, error) {
@@ -25,6 +26,7 @@ func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logge
 		Collector: collector,
 		Sugar:     logger.Sugar(),
 		logger:    logger,
+		key:       cfg.Key,
 	}, nil
 }
 

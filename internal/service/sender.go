@@ -2,13 +2,15 @@ package service
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"time"
-
 	"github.com/annakonkova23/collect-metrics/internal/agent"
 	"github.com/annakonkova23/collect-metrics/internal/model"
 	"go.uber.org/zap"
+	"time"
 )
 
 type Sender struct {
@@ -17,15 +19,17 @@ type Sender struct {
 	url            string
 	reportInterval int
 	logger         *zap.Logger
+	key            string
 }
 
-func NewSender(url string, pollInterval, reportInterval int, logger *zap.Logger) *Sender {
+func NewSender(url string, pollInterval, reportInterval int, key string, logger *zap.Logger) *Sender {
 	return &Sender{
 		client:         agent.NewClient(logger.Sugar()),
 		runMetric:      model.NewRuntimeMetric(pollInterval, logger),
 		url:            url,
 		reportInterval: reportInterval,
 		logger:         logger,
+		key:            key,
 	}
 }
 func (s *Sender) SendRequest(ctx context.Context, b chan bool) {
@@ -42,9 +46,12 @@ func (s *Sender) SendRequest(ctx context.Context, b chan bool) {
 			if len(metrics) == 0 {
 				continue
 			}
-			body, _ := json.Marshal(metrics)
+			body, err := json.Marshal(metrics)
+			if err != nil {
+				s.logger.Error("Ошибка преобразования структуры", zap.Error(err))
+			}
 			s.logger.Info(fmt.Sprintf("Запрос %s", string(body)))
-			if err := s.client.PostWithBody(ctx, s.url, body); err != nil {
+			if err := s.client.PostWithBody(ctx, s.url, body, s.GetHash(body)); err != nil {
 				s.logger.Info(fmt.Sprintf("Ошибка отправки метрики %s: %v", string(body), err))
 			} else {
 				s.logger.Info("Успешный ответ")
@@ -52,6 +59,19 @@ func (s *Sender) SendRequest(ctx context.Context, b chan bool) {
 		}
 
 	}
+}
+
+func (s *Sender) GetHash(body []byte) string {
+	if s.key == "" {
+		return ""
+	}
+	fmt.Println("key: ", s.key)
+	secretKey := []byte(s.key)
+	h := hmac.New(sha256.New, secretKey)
+	h.Write([]byte(body))
+	signature := h.Sum(nil)
+	signatureHex := hex.EncodeToString(signature)
+	return signatureHex
 }
 
 func (s *Sender) GetURLForMetric(name, typeM, value string) string {
