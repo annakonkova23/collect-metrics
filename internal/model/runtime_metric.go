@@ -1,11 +1,9 @@
 package model
 
 import (
-	"go.uber.org/zap"
 	"math/rand"
 	"runtime"
 	"sync"
-	"time"
 )
 
 type RMetric int
@@ -75,10 +73,8 @@ var allMetrics = []RMetric{Alloc,
 }
 
 type RuntimeMetric struct {
-	Metrics      map[string]float64
-	mx           sync.RWMutex
-	pollInterval int
-	logger       *zap.Logger
+	Metrics map[string]float64
+	mx      sync.RWMutex
 }
 
 func (r RMetric) String() string {
@@ -112,11 +108,9 @@ func (r RMetric) String() string {
 	}[r]
 }
 
-func NewRuntimeMetric(pollInterval int, logger *zap.Logger) *RuntimeMetric {
+func NewRuntimeMetric() *RuntimeMetric {
 	return &RuntimeMetric{
-		Metrics:      make(map[string]float64),
-		pollInterval: pollInterval,
-		logger:       logger,
+		Metrics: make(map[string]float64),
 	}
 }
 func (rm *RuntimeMetric) CalcMetric() map[string]float64 {
@@ -186,28 +180,14 @@ func (rm *RuntimeMetric) CalcMetric() map[string]float64 {
 	return valMetric
 }
 
-func (rm *RuntimeMetric) UpdateMetric(chanel chan bool) {
-	rm.logger.Info("Запускаем обновление метрик",
-		zap.Int("pollInterval", rm.pollInterval),
-	)
-	var once sync.Once
-	cnt := 1
-	for {
-		valMetric := rm.CalcMetric()
-		once.Do(func() {
-			rm.logger.Info("Метрики первый раз рассчитались")
-			close(chanel)
-		})
-		rm.mx.Lock()
-		for k, v := range valMetric {
-			rm.Metrics[k] = v
-		}
-		rm.logger.Info("Метрики рассчитались", zap.Int("cnt", cnt))
-		cnt++
-		rm.Metrics[nameCounter] = rm.Metrics[nameCounter] + 1
-		rm.mx.Unlock()
-		time.Sleep(time.Duration(rm.pollInterval) * time.Second)
+func (rm *RuntimeMetric) UpdateMetric() {
+	valMetric := rm.CalcMetric()
+	rm.mx.Lock()
+	defer rm.mx.Unlock()
+	for k, v := range valMetric {
+		rm.Metrics[k] = v
 	}
+	rm.Metrics[nameCounter] = rm.Metrics[nameCounter] + 1
 }
 
 func (rm *RuntimeMetric) GetTypeMetric(name string) string {
@@ -216,32 +196,4 @@ func (rm *RuntimeMetric) GetTypeMetric(name string) string {
 	} else {
 		return Gauge
 	}
-}
-
-func (rm *RuntimeMetric) GetMetricsValue() map[string]float64 {
-	rm.mx.RLock()
-	defer rm.mx.RUnlock()
-	return rm.Metrics
-
-}
-
-func (rm *RuntimeMetric) GetMetrics() []*Metrics {
-	rm.mx.RLock()
-	defer rm.mx.RUnlock()
-	mcs := make([]*Metrics, len(rm.Metrics))
-	i := 0
-	for k, v := range rm.Metrics {
-		typeM := rm.GetTypeMetric(k)
-		metric := &Metrics{ID: k, MType: typeM}
-		if typeM == Counter {
-			delta := int64(v)
-			metric.Delta = &delta
-		} else {
-			metric.Value = &v
-		}
-		mcs[i] = metric
-		i++
-	}
-	return mcs
-
 }

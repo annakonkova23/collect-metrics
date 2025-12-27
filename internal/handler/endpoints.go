@@ -165,7 +165,7 @@ func (s *Server) pingDBHandler(w http.ResponseWriter, r *http.Request) {
 	err := s.Collector.PingDB()
 	if err != nil {
 		s.logger.Error("pingDB:" + err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -187,7 +187,7 @@ func (s *Server) updateSeveralJSONHandler(w http.ResponseWriter, r *http.Request
 	err = json.Unmarshal(bodyBytes, &metrics)
 	if err != nil {
 		s.logger.Error("Некорректный json:" + err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
 	metrics, err = s.Collector.SaveMetrics(r.Context(), metrics)
 	if err != nil {
@@ -197,7 +197,7 @@ func (s *Server) updateSeveralJSONHandler(w http.ResponseWriter, r *http.Request
 	value, err := json.Marshal(metrics)
 	if err != nil {
 		s.logger.Error("Некорректная структура:" + err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(value)
