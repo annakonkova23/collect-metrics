@@ -62,8 +62,8 @@ func NewServerOptions() *ServerOptions {
 	fileStoragePathFlag := flag.String("f", defaultFileStoragePath, "Путь к файлу хранения")
 	databaseDSNFlag := flag.String("d", defaultDBDSN, "Aдрес подключения к БД")
 	keyFlag := flag.String("k", defaultKey, "Ключ для хеша")
-	auditFileFlag := flag.String("audit-file", "audit.log", "Путь к файлу аудита")
-	auditURLflag := flag.String("audit-url", "localhost:8081", "URL для аудита")
+	auditFileFlag := flag.String("audit-file", "", "Путь к файлу аудита")
+	auditURLflag := flag.String("audit-url", "", "URL для аудита")
 	bufSizeflag := flag.Int("b", defaultBufferSize, "Размер буфера каналов")
 	flag.Parse()
 
