@@ -57,7 +57,10 @@ func main() {
 	}()
 
 	<-ctx.Done()
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
+	server.Shutdown(shutdownCtx)
 	fmt.Println("Получен сигнал завершения. Сохраняю данные...")
 	logger.Info("Контекст завершён, сохраняю данные", zap.Error(ctx.Err()))
 

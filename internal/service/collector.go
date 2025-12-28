@@ -12,14 +12,9 @@ import (
 
 	"github.com/annakonkova23/collect-metrics/internal/config"
 	"github.com/annakonkova23/collect-metrics/internal/model"
-	dbmanager "github.com/annakonkova23/collect-metrics/internal/service/dbManager"
+	"github.com/annakonkova23/collect-metrics/internal/repository"
 	fh "github.com/annakonkova23/collect-metrics/internal/service/fileHandler"
 	"go.uber.org/zap"
-)
-
-const (
-	countAttempt = 3
-	delayAttempt = 2
 )
 
 var ErrorNotFound = errors.New("not exists name metric")
@@ -30,7 +25,7 @@ type Collector struct {
 	fileHandler   *fh.FileHandler
 	StoreInterval int
 	mx            sync.RWMutex
-	conn          *dbmanager.DBManager
+	conn          *repository.DBStore
 }
 
 type Metric struct {
@@ -45,14 +40,14 @@ func NewCollector(ctx context.Context, cfg *config.ServerOptions, logger *zap.Lo
 		logger:        logger,
 		MemStorage:    model.NewMemStorage(),
 	}
-	clr.conn = dbmanager.NewDBManager(dbConnect)
+	clr.conn = repository.NewDBStore(logger, dbConnect)
 	fileHandler, err := fh.NewFileHandler(cfg.FileStoragePath, logger)
 	if err != nil {
 		logger.Error("Ошибка создания обработчика файлов", zap.Error(err))
 	} else {
 		clr.fileHandler = fileHandler
 	}
-	if clr.conn.DB != nil {
+	if clr.conn.IsConnectDB() {
 		err := clr.conn.CreateObjectDB()
 		if err != nil {
 			return nil, err
@@ -60,7 +55,7 @@ func NewCollector(ctx context.Context, cfg *config.ServerOptions, logger *zap.Lo
 	}
 	if cfg.Restore {
 		clr.logger.Info("Инициализация метрик", zap.Bool("Restore", cfg.Restore))
-		if clr.conn.DB != nil {
+		if clr.conn.IsConnectDB() {
 			if err := clr.initMemStorageFromDB(ctx); err != nil {
 				return nil, err
 			}
@@ -94,7 +89,7 @@ func (c *Collector) initMemStorageFromFile() error {
 }
 
 func (c *Collector) initMemStorageFromDB(ctx context.Context) error {
-	metrics, err := c.RetryLoadMetricsToDB(ctx)
+	metrics, err := c.conn.RetryLoadMetricsToDB(ctx, 1)
 	if err != nil {
 		return err
 	}
@@ -102,39 +97,6 @@ func (c *Collector) initMemStorageFromDB(ctx context.Context) error {
 		c.MemStorage.InitMetrics(metrics)
 	}
 	return nil
-}
-
-func (c *Collector) loadMetricsFromDB(ctx context.Context) ([]*model.Metrics, error) {
-	var metrics []*model.Metrics
-	var data sql.NullString
-	rows, err := c.conn.DB.QueryContext(ctx, `select json_strip_nulls(json_agg(json_build_object(
-													'id',code,
-													'type',type_metric,
-													'value',gauge_value,
-													'delta',counter_value)))
-											from storage.metrics_value`)
-	if err != nil {
-		c.logger.Error("Ошибка запроса метрик из БД", zap.Error(err))
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		if err := rows.Scan(&data); err != nil {
-			c.logger.Error("Ошибка сканирования данных", zap.Error(err))
-			return nil, err
-		}
-	}
-	if err := rows.Err(); err != nil {
-		c.logger.Error("Ошибка чтения строк", zap.Error(err))
-		return nil, err
-	}
-	if data.Valid {
-		if err := json.Unmarshal([]byte(data.String), &metrics); err != nil {
-			msg := fmt.Sprintf("Ошибка парсинга метрик в структуру: %s", err.Error())
-			return nil, fmt.Errorf("%s", msg)
-		}
-	}
-	return metrics, nil
 }
 
 func (c *Collector) SaveMetricsByParam(ctx context.Context, name, typeMetric, value string) error {
@@ -247,8 +209,8 @@ func (c *Collector) SaveMetrics(ctx context.Context, metrics []*model.Metrics) (
 		}
 		metricsNew = append(metricsNew, metric)
 	}
-	if c.conn.DB != nil {
-		err := c.saveMetricsToDB(ctx, metricsNew)
+	if c.conn.IsConnectDB() {
+		err := c.conn.SaveMetricsToDB(ctx, metricsNew)
 		if err != nil {
 			c.logger.Error("Ошибка сохранения метрик в БД", zap.Error(err))
 		}
@@ -260,94 +222,6 @@ func (c *Collector) SaveMetrics(ctx context.Context, metrics []*model.Metrics) (
 
 }
 
-func (c *Collector) saveMetricsToDB(ctx context.Context, metrics []*model.Metrics) error {
-	tx, err := c.conn.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("ошибка начала транзакции: %w", err)
-	}
-
-	query := `
-        INSERT INTO storage.metrics_value(code, type_metric, gauge_value, counter_value)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (code, type_metric)
-        DO UPDATE SET
-            gauge_value = EXCLUDED.gauge_value,
-            counter_value = EXCLUDED.counter_value;
-    `
-
-	stmt, err := tx.Prepare(query)
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("ошибка подготовки запроса: %w", err)
-	}
-	defer stmt.Close()
-
-	for _, metric := range metrics {
-		_, err := stmt.ExecContext(ctx, metric.ID, metric.MType, metric.Value, metric.Delta)
-		if err != nil {
-			tx.Rollback()
-			return fmt.Errorf("ошибка выполнения запроса для метрики %s: %w", metric.ID, err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("ошибка фиксации транзакции: %w", err)
-	}
-
-	return nil
-}
-
 func (c *Collector) PingDB() error {
 	return c.conn.Ping()
-}
-
-func (c *Collector) RetrySaveMetricsToDB(ctx context.Context, metrics []*model.Metrics) error {
-	delay := 1
-
-	for i := 0; i < countAttempt; i++ {
-
-		err := c.saveMetricsToDB(ctx, metrics)
-		if err != nil {
-			if c.conn.IsTransportError(err) {
-				select {
-				case <-ctx.Done():
-					c.logger.Info("Отмена контекста")
-					return err
-				case <-time.After(time.Duration(delay) * time.Second):
-					delay = delay + delayAttempt
-					continue
-				}
-			} else {
-				return err
-			}
-		}
-		return nil
-	}
-	return nil
-}
-
-func (c *Collector) RetryLoadMetricsToDB(ctx context.Context) ([]*model.Metrics, error) {
-	delay := 1
-	var metrics []*model.Metrics
-	var err error
-	for i := 0; i < countAttempt; i++ {
-
-		metrics, err = c.loadMetricsFromDB(ctx)
-		if err != nil {
-			if c.conn.IsTransportError(err) {
-				select {
-				case <-ctx.Done():
-					c.logger.Info("Отмена контекста")
-					return nil, err
-				case <-time.After(time.Duration(delay) * time.Second):
-					delay = delay + delayAttempt
-					continue
-				}
-			} else {
-				return nil, err
-			}
-		}
-		return metrics, nil
-	}
-	return metrics, err
 }

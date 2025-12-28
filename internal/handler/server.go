@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/annakonkova23/collect-metrics/internal/audit"
 	"github.com/annakonkova23/collect-metrics/internal/config"
 	mw "github.com/annakonkova23/collect-metrics/internal/handler/middleware"
 	"github.com/annakonkova23/collect-metrics/internal/service"
@@ -18,17 +19,31 @@ type Server struct {
 	Sugar     *zap.SugaredLogger
 	logger    *zap.Logger
 	key       string
+	auditor   *audit.AuditManager
+	srv       *http.Server
 }
 
 func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logger, collector *service.Collector) (*Server, error) {
-	return &Server{
+	srv := &Server{
 		router:    chi.NewRouter(),
 		url:       cfg.Host,
 		Collector: collector,
 		Sugar:     logger.Sugar(),
 		logger:    logger,
 		key:       cfg.Key,
-	}, nil
+	}
+	auditor, err := audit.NewAuditManager(logger, cfg.BufferSize, cfg.AuditFilePath, cfg.AuditURL)
+	if err != nil {
+		return nil, err
+	}
+	server := &http.Server{
+		Addr:    cfg.Host,
+		Handler: srv.router,
+	}
+	srv.srv = server
+	srv.auditor = auditor
+	srv.auditor.Start(ctx)
+	return srv, nil
 }
 
 func (s *Server) StartAndListen() error {
@@ -40,8 +55,15 @@ func (s *Server) StartAndListen() error {
 	s.router.Post("/value/", s.valueJSONHandler)
 	s.router.Get("/ping", s.pingDBHandler)
 	s.router.Post("/updates/", s.updateSeveralJSONHandler)
-	if err := http.ListenAndServe(s.url, s.router); err != nil {
+	if err := s.srv.ListenAndServe(); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (s *Server) Shutdown(ctx context.Context) {
+	if err := s.srv.Shutdown(ctx); err != nil {
+		_ = s.srv.Close()
+		s.logger.Error("Ошибка при закрытии сервера", zap.Error(err))
+	}
 }

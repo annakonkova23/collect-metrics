@@ -41,3 +41,11 @@ func (m *Metrics) Copy() *Metrics {
 		Hash:  m.Hash,
 	}
 }
+
+func GetListIDMetrics(ms []*Metrics) []string {
+	metrics := make([]string, 0)
+	for _, m := range ms {
+		metrics = append(metrics, m.ID)
+	}
+	return metrics
+}
