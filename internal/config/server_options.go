@@ -55,6 +55,7 @@ func getEnvBool(envKey string, defaultValue bool) bool {
 	return defaultValue
 }
 
+// NewServerOptions создает новый экземпляр ServerOptions с значениями по умолчанию.
 func NewServerOptions() *ServerOptions {
 	hostFlag := flag.String("a", defaultHost, "Хост")
 	storeIntervalFlag := flag.Int("i", defaultStoreInterval, "Интервал сохранения данных (сек)")

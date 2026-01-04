@@ -33,6 +33,7 @@ func (m *Metrics) Copy() *Metrics {
 	return &cpy
 }
 
+// GetMetricsIDList возвращает список ID метрик.
 func GetListIDMetrics(ms []*Metrics) []string {
 	metrics := make([]string, 0)
 	for _, m := range ms {

@@ -1,3 +1,4 @@
+// Пакет работы с клиентом.
 package agent
 
 import (
@@ -17,11 +18,13 @@ import (
 	"go.uber.org/zap"
 )
 
+// Константы для retry.
 const (
-	countAttempt = 3
-	delayAttempt = 2
+	countAttempt = 3 //количество попыток
+	delayAttempt = 2 //задержка между попытками
 )
 
+// Client клиент.
 type Client struct {
 	client         *resty.Client
 	Sugar          *zap.SugaredLogger
@@ -29,6 +32,7 @@ type Client struct {
 	bufferPool     sync.Pool
 }
 
+// NewClient создание клиента.
 func NewClient(sugar *zap.SugaredLogger) *Client {
 	return &Client{
 		client: resty.New(),
@@ -46,6 +50,7 @@ func NewClient(sugar *zap.SugaredLogger) *Client {
 	}
 }
 
+// Post отправляет POST-запрос в формате text/plain.
 func (c *Client) Post(url string) error {
 	c.client.OnAfterResponse(c.WithLoggingResponse)
 	response, err := c.client.R().
@@ -62,9 +67,10 @@ func (c *Client) Post(url string) error {
 	return nil
 }
 
+// Post	отправка post запроса в формате application/json с body.
 func (c *Client) PostWithBody(ctx context.Context, url string, body []byte, hash string) error {
 	delay := 1
-	// Берём из пула
+
 	buf := c.bufferPool.Get().(*bytes.Buffer)
 	gz := c.gzipWriterPool.Get().(*gzip.Writer)
 
@@ -92,8 +98,6 @@ func (c *Client) PostWithBody(ctx context.Context, url string, body []byte, hash
 	c.client.OnAfterResponse(c.WithLoggingResponse)
 	var err error
 	var response *resty.Response
-	fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-	fmt.Println("URL   ", url)
 	for i := 0; i < countAttempt; i++ {
 		response, err = c.client.R().
 			SetHeader("Content-Encoding", "gzip").
@@ -103,8 +107,6 @@ func (c *Client) PostWithBody(ctx context.Context, url string, body []byte, hash
 			SetHeader("HashSHA256", hash).
 			SetBody(compressed).
 			Post(url)
-
-		c.Sugar.Infof("URL: %s | Status: %d | Body: %s", url, response.StatusCode(), string(response.Body()))
 
 		if err == nil && response.StatusCode() == http.StatusOK {
 			return nil
@@ -131,6 +133,7 @@ func (c *Client) PostWithBody(ctx context.Context, url string, body []byte, hash
 	return nil
 }
 
+// WithLoggingResponse middleware для логирования.
 func (c *Client) WithLoggingResponse(client *resty.Client, response *resty.Response) error {
 	c.Sugar.Infoln(
 		"status", response.Status(),
@@ -141,6 +144,7 @@ func (c *Client) WithLoggingResponse(client *resty.Client, response *resty.Respo
 	return nil
 }
 
+// isTemporaryResponseError проверка на временную ошибку.
 func (c *Client) isTemporaryResponseError(err error, resp *resty.Response) bool {
 	if err != nil && resp != nil && resp.StatusCode() >= 500 {
 		return true
@@ -154,6 +158,7 @@ func (c *Client) isTemporaryResponseError(err error, resp *resty.Response) bool 
 	return false
 }
 
+// isConnectionRefused проверка на ошибку соединения
 func (c *Client) isConnectionRefused(err error) bool {
 	var opErr *net.OpError
 	if errors.As(err, &opErr) {

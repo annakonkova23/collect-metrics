@@ -7,10 +7,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-const (
-	dirScript = "./migrations"
-)
-
+// NewDBConnect создает подключение к БД и возвращает его, делает Ping и устанавливает параметры соединения
 func NewDBConnect(connString string) (*sql.DB, error) {
 	db, err := sql.Open("pgx", connString)
 	if err != nil {

@@ -18,6 +18,7 @@ type AgentOptions struct {
 	RateLimiter    int
 }
 
+// NewAgentOptions создает новый объект AgentOptions.
 func NewAgentOptions() *AgentOptions {
 	hostFlag := flag.String("a", defaultHost, "Хост")
 	pollIntervalFlag := flag.Int("p", defaultPollInterval, "Частота опроса метрик из пакета runtime (в секундах)")

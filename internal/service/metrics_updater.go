@@ -14,13 +14,18 @@ const (
 	typeRuntime = "runtime"
 )
 
+// MetricsUpdater - структура для обновления метрик.
 type MetricsUpdater struct {
-	logger       *zap.Logger
-	runMetric    *model.RuntimeMetric
-	utilMetric   *model.UtilMetric
-	pollInterval int
+	logger       *zap.Logger          // Логгер
+	runMetric    *model.RuntimeMetric // Метрика runtime
+	utilMetric   *model.UtilMetric    // Метрика util
+	pollInterval int                  // Интервал обновления метрик
 }
 
+// NewMetricsUpdater - конструктор для MetricsUpdater.
+// Параметры:
+// - logger: Логгер
+// - pollInterval: Интервал обновления метрик
 func NewMetricsUpdater(logger *zap.Logger, pollInterval int) *MetricsUpdater {
 	return &MetricsUpdater{
 		runMetric:    model.NewRuntimeMetric(),
@@ -30,6 +35,7 @@ func NewMetricsUpdater(logger *zap.Logger, pollInterval int) *MetricsUpdater {
 	}
 }
 
+// UpdateRuntimeMetric - метод для обновления метрик runtime.
 func (mu *MetricsUpdater) UpdateRuntimeMetric(ctx context.Context, chanel chan []byte) {
 	mu.logger.Info("Запускаем обновление runtime метрик",
 		zap.Int("pollInterval", mu.pollInterval),
@@ -54,6 +60,7 @@ func (mu *MetricsUpdater) UpdateRuntimeMetric(ctx context.Context, chanel chan [
 	}
 }
 
+// UpateUtilMetric - метод для обновления метрик util.
 func (mu *MetricsUpdater) UpateUtilMetric(ctx context.Context, chanel chan []byte) {
 	mu.logger.Info("Запускаем обновление util метрик",
 		zap.Int("pollInterval", mu.pollInterval),
@@ -83,6 +90,7 @@ func (mu *MetricsUpdater) UpateUtilMetric(ctx context.Context, chanel chan []byt
 	}
 }
 
+// codeMapRuntimeToMetricsByte - метод для кодирования метрик в JSON.
 func (mu *MetricsUpdater) codeMapRuntimeToMetricsByte(val map[string]float64, typeCalc string) ([]byte, error) {
 	mcs := make([]*model.Metrics, len(val))
 	typeM := ""

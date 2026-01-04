@@ -1,3 +1,36 @@
+// Package handler отвечает за HTTP-интерфейс сервера сбора и отображения метрик.
+//
+// Реализует:
+//   - Приём метрик через POST-запросы (в формате JSON и path-параметров)
+//   - Получение значений метрик по имени и типу
+//   - Просмотр всех метрик через веб-интерфейс
+//   - Проверку подлинности запросов (HMAC-SHA256)
+//   - Сжатие/распаковку тел запросов и ответов (gzip)
+//   - Логирование запросов
+//   - Аудит операций (запись в файл и/или отправка на удалённый URL)
+//
+// Использует:
+//   - go-chi/chi — для маршрутизации
+//   - zap — для логирования
+//   - audit — для аудита
+//   - service.Collector — для хранения и обработки метрик
+//
+// Пример инициализации:
+//
+//	ctx := context.Background()
+//	cfg := config.NewServerOptions()
+//	logger, _ := zap.NewProduction()
+//	collector := service.NewCollector()
+//
+//	server, err := handler.NewServer(ctx, cfg, logger, collector)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer server.Shutdown(ctx)
+//
+//	if err := server.StartAndListen(); err != nil && err != http.ErrServerClosed {
+//	    log.Fatal(err)
+//	}
 package handler
 
 import (
@@ -12,17 +45,41 @@ import (
 	"go.uber.org/zap"
 )
 
+// Server инкапсулирует HTTP-сервер, маршрутизатор, обработчики и зависимости.
+//
+// Обеспечивает:
+//   - Регистрацию middleware и маршрутов
+//   - Запуск и корректное завершение работы сервера
+//   - Интеграцию с аудитом и валидацией запросов
 type Server struct {
-	router    *chi.Mux
-	url       string
-	Collector *service.Collector
-	Sugar     *zap.SugaredLogger
-	logger    *zap.Logger
-	key       string
-	auditor   *audit.AuditManager
-	srv       *http.Server
+	router    *chi.Mux            // HTTP-роутер на основе chi
+	url       string              // Адрес, на котором работает сервер (например, ":8080")
+	Collector *service.Collector  // Служба сбора и хранения метрик
+	Sugar     *zap.SugaredLogger  // Удобный интерфейс логирования
+	logger    *zap.Logger         // Структурированный логгер
+	key       string              // Ключ для проверки HMAC-SHA256 в заголовке HashSHA256
+	auditor   *audit.AuditManager // Менеджер аудита (файл + HTTP)
+	srv       *http.Server        // Стандартный HTTP-сервер Go
 }
 
+// NewServer создаёт новый экземпляр HTTP-сервера.
+//
+// Параметры:
+//   - ctx: контекст для управления жизненным циклом аудит-менеджера
+//   - cfg: конфигурация сервера (хост, ключ, размер буфера, пути аудита)
+//   - logger: экземпляр *zap.Logger для логирования
+//   - collector: сервис, управляющий метриками
+//
+// Действия:
+//   - Инициализирует роутер chi
+//   - Создаёт http.Server с обработчиком
+//   - Запускает менеджер аудита (если указаны пути/URL)
+//
+// Возвращает:
+//   - Указатель на *Server и nil в случае успеха
+//   - nil и ошибку, если не удалось инициализировать аудит (например, нет прав на файл)
+//
+// Примечание: сервер не запускается автоматически — требуется вызвать StartAndListen().
 func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logger, collector *service.Collector) (*Server, error) {
 	r := chi.NewRouter()
 	srv := &Server{
@@ -47,8 +104,25 @@ func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logge
 	return srv, nil
 }
 
+// StartAndListen запускает HTTP-сервер и начинает прослушивать подключения.
+//
+// Регистрирует:
+//   - Middleware: логирование, сжатие, проверка хэша
+//   - Обработчики для всех эндпоинтов
+//
+// Эндпоинты:
+//   - POST   /update/{type}/{name}/{value} — обновить метрику по пути
+//   - POST   /update/ — обновить метрику в формате JSON
+//   - POST   /updates/ — обновить несколько метрик (массив JSON)
+//   - GET    /value/{type}/{name} — получить значение метрики
+//   - GET    /value/ — получить значение метрики в формате JSON
+//   - GET    / — отобразить все метрики (HTML)
+//   - GET    /ping — проверка доступности БД
+//
+// В случае ошибки (кроме ErrServerClosed) возвращает ошибку.
+// Для graceful shutdown используйте Shutdown(ctx).
 func (s *Server) StartAndListen() error {
-	s.router.Use(mw.WithLogging, mw.WithCompress, mw.WithCheckHash(s.key))
+	s.router.Use(mw.WithLogging(s.logger), mw.WithCompress, mw.WithCheckHash(s.key))
 	s.router.Post("/update/{type}/{name}/{value}", s.updateHandler)
 	s.router.Post("/update/", s.updateJSONHandler)
 	s.router.Get("/value/{type}/{name}", s.valueHandler)
@@ -62,6 +136,17 @@ func (s *Server) StartAndListen() error {
 	return nil
 }
 
+// Shutdown корректно останавливает сервер.
+//
+// Параметры:
+//   - ctx: контекст с таймаутом для graceful shutdown
+//
+// Поведение:
+//   - Вызывает http.Server.Shutdown(ctx)
+//   - В случае ошибки — логирует и пытается закрыть сервер принудительно
+//   - Использует s.logger для записи ошибок
+//
+// Должен вызываться при завершении приложения, например через defer.
 func (s *Server) Shutdown(ctx context.Context) {
 	if err := s.srv.Shutdown(ctx); err != nil {
 		_ = s.srv.Close()

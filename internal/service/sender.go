@@ -12,15 +12,23 @@ import (
 	"go.uber.org/zap"
 )
 
+// Sender - структура для отправки метрик.
 type Sender struct {
-	client         *agent.Client
-	updMetric      *MetricsUpdater
-	url            string
-	reportInterval int
-	logger         *zap.Logger
-	key            string
+	client         *agent.Client   // Клиент для отправки метрик
+	updMetric      *MetricsUpdater // Обновитель метрик
+	url            string          // URL для отправки метрик
+	reportInterval int             // Интервал отправки метрик
+	logger         *zap.Logger     // Логгер
+	key            string          // Ключ для подписи метрик
 }
 
+// NewSender - конструктор для Sender.
+// Параметры:
+// - url: URL для отправки метрик
+// - pollInterval: Интервал опроса метрик
+// - reportInterval: Интервал отправки метрик
+// - key: Ключ для подписи метрик
+// - logger: Логгер
 func NewSender(url string, pollInterval, reportInterval int, key string, logger *zap.Logger) *Sender {
 	return &Sender{
 		client:         agent.NewClient(logger.Sugar()),
@@ -31,6 +39,8 @@ func NewSender(url string, pollInterval, reportInterval int, key string, logger 
 		key:            key,
 	}
 }
+
+// SendRequest - метод для отправки метрик.
 func (s *Sender) SendRequest(ctx context.Context, bodys <-chan []byte) {
 	s.logger.Info("Ждём расчета метрик")
 	ticker := time.NewTicker(time.Duration(s.reportInterval) * time.Second)
@@ -53,6 +63,7 @@ func (s *Sender) SendRequest(ctx context.Context, bodys <-chan []byte) {
 	}
 }
 
+// GetHash - метод для получения хеша метрик.
 func (s *Sender) GetHash(body []byte) string {
 	if s.key == "" {
 		return ""
@@ -65,10 +76,12 @@ func (s *Sender) GetHash(body []byte) string {
 	return signatureHex
 }
 
+// GetURLForMetric - метод для получения URL для метрики.
 func (s *Sender) GetURLForMetric(name, typeM, value string) string {
 	return s.url + typeM + "/" + name + "/" + value
 }
 
+// Start - метод для запуска отправки метрик.
 func (s *Sender) Start(ctx context.Context, numWorkers int) {
 	s.logger.Info("Старт отправления метрик")
 	chCalc := make(chan []byte, numWorkers)
