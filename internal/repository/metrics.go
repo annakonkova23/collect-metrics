@@ -78,28 +78,28 @@ func (s *DBStore) SaveMetricsToDB(ctx context.Context, metrics []*model.Metrics)
 	return nil
 }
 
-func (db *DBStore) loadMetricsFromDB(ctx context.Context) ([]*model.Metrics, error) {
+func (s *DBStore) loadMetricsFromDB(ctx context.Context) ([]*model.Metrics, error) {
 	var metrics []*model.Metrics
 	var data sql.NullString
-	rows, err := db.database.DB.QueryContext(ctx, `select json_strip_nulls(json_agg(json_build_object(
+	rows, err := s.database.DB.QueryContext(ctx, `select json_strip_nulls(json_agg(json_build_object(
 													'id',code,
 													'type',type_metric,
 													'value',gauge_value,
 													'delta',counter_value)))
 											from storage.metrics_value`)
 	if err != nil {
-		db.logger.Error("Ошибка запроса метрик из БД", zap.Error(err))
+		s.logger.Error("Ошибка запроса метрик из БД", zap.Error(err))
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		if err := rows.Scan(&data); err != nil {
-			db.logger.Error("Ошибка сканирования данных", zap.Error(err))
+			s.logger.Error("Ошибка сканирования данных", zap.Error(err))
 			return nil, err
 		}
 	}
 	if err := rows.Err(); err != nil {
-		db.logger.Error("Ошибка чтения строк", zap.Error(err))
+		s.logger.Error("Ошибка чтения строк", zap.Error(err))
 		return nil, err
 	}
 	if data.Valid {

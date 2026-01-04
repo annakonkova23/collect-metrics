@@ -18,11 +18,11 @@ type Observer interface {
 
 func (e Event) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
-		Ts      int64    `json:"ts"`
+		TS      int64    `json:"ts"`
 		Metrics []string `json:"metrics"`
 		IP      string   `json:"ip_address"`
 	}{
-		Ts:      e.Time.Unix(),
+		TS:      e.Time.Unix(),
 		Metrics: e.Metrics,
 		IP:      e.IP,
 	})

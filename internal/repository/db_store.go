@@ -20,10 +20,7 @@ func NewDBStore(logger *zap.Logger, dbConnect *sql.DB) *DBStore {
 }
 
 func (s *DBStore) IsConnectDB() bool {
-	if s.database.DB != nil {
-		return true
-	}
-	return false
+	return s.database.DB != nil
 }
 
 func (s *DBStore) CreateObjectDB() error {
