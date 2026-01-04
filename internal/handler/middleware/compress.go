@@ -159,7 +159,7 @@ func compessResponse(crw *CustomResponseWriter) ([]byte, error) {
 		return nil, err
 	}
 
-	compressed := make([]byte, buf.Len(), buf.Len())
+	compressed := make([]byte, buf.Len())
 	copy(compressed, buf.Bytes())
 
 	gzipWriterPool.Put(gz)
