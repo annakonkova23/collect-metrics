@@ -8,6 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/annakonkova23/collect-metrics/internal/config"
 	"github.com/annakonkova23/collect-metrics/internal/service"
 	"go.uber.org/zap"
@@ -43,6 +46,13 @@ func main() {
 	logger.Info("Отправитель создан")
 
 	sender.Start(ctx, cfg.RateLimiter)
+
+	go func() {
+		log.Println("pprof: http://localhost:6060/debug/pprof/")
+		if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	<-ctx.Done()
 	logger.Info("Получен сигнал. Отмена...")

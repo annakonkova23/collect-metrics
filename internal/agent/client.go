@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -22,14 +23,26 @@ const (
 )
 
 type Client struct {
-	client *resty.Client
-	Sugar  *zap.SugaredLogger
+	client         *resty.Client
+	Sugar          *zap.SugaredLogger
+	gzipWriterPool sync.Pool
+	bufferPool     sync.Pool
 }
 
 func NewClient(sugar *zap.SugaredLogger) *Client {
 	return &Client{
 		client: resty.New(),
 		Sugar:  sugar,
+		gzipWriterPool: sync.Pool{
+			New: func() interface{} {
+				return gzip.NewWriter(nil)
+			},
+		},
+		bufferPool: sync.Pool{
+			New: func() interface{} {
+				return new(bytes.Buffer)
+			},
+		},
 	}
 }
 
@@ -51,18 +64,36 @@ func (c *Client) Post(url string) error {
 
 func (c *Client) PostWithBody(ctx context.Context, url string, body []byte, hash string) error {
 	delay := 1
-	var buf bytes.Buffer
-	gz := gzip.NewWriter(&buf)
-	defer gz.Close()
+	// Берём из пула
+	buf := c.bufferPool.Get().(*bytes.Buffer)
+	gz := c.gzipWriterPool.Get().(*gzip.Writer)
+
+	buf.Reset()
+	gz.Reset(buf)
+
 	if _, err := gz.Write(body); err != nil {
+		gz.Close()
+		c.bufferPool.Put(buf)
+		c.gzipWriterPool.Put(gz)
 		return err
 	}
 	if err := gz.Close(); err != nil {
+		c.bufferPool.Put(buf)
+		c.gzipWriterPool.Put(gz)
 		return err
 	}
+
+	compressed := buf.Bytes()
+
+	defer func() {
+		c.bufferPool.Put(buf)
+		c.gzipWriterPool.Put(gz)
+	}()
 	c.client.OnAfterResponse(c.WithLoggingResponse)
 	var err error
 	var response *resty.Response
+	fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+	fmt.Println("URL   ", url)
 	for i := 0; i < countAttempt; i++ {
 		response, err = c.client.R().
 			SetHeader("Content-Encoding", "gzip").
@@ -70,8 +101,10 @@ func (c *Client) PostWithBody(ctx context.Context, url string, body []byte, hash
 			SetHeader("Content-Length", strconv.Itoa(buf.Len())).
 			SetHeader("Accept-Encoding", "gzip").
 			SetHeader("HashSHA256", hash).
-			SetBody(buf.Bytes()).
+			SetBody(compressed).
 			Post(url)
+
+		c.Sugar.Infof("URL: %s | Status: %d | Body: %s", url, response.StatusCode(), string(response.Body()))
 
 		if err == nil && response.StatusCode() == http.StatusOK {
 			return nil

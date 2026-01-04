@@ -20,26 +20,16 @@ type Metrics struct {
 }
 
 func (m *Metrics) Copy() *Metrics {
-
-	var delta *int64
+	cpy := *m
 	if m.Delta != nil {
-		d := *m.Delta
-		delta = &d
+		delta := *m.Delta
+		cpy.Delta = &delta
 	}
-
-	var value *float64
 	if m.Value != nil {
-		v := *m.Value
-		value = &v
+		value := *m.Value
+		cpy.Value = &value
 	}
-
-	return &Metrics{
-		ID:    m.ID,
-		MType: m.MType,
-		Delta: delta,
-		Value: value,
-		Hash:  m.Hash,
-	}
+	return &cpy
 }
 
 func GetListIDMetrics(ms []*Metrics) []string {

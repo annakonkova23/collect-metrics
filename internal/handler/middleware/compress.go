@@ -7,6 +7,20 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
+)
+
+var (
+	gzipWriterPool = sync.Pool{
+		New: func() interface{} {
+			return gzip.NewWriter(nil)
+		},
+	}
+	gzipBufferPool = sync.Pool{
+		New: func() interface{} {
+			return new(bytes.Buffer)
+		},
+	}
 )
 
 type CustomResponseWriter struct {
@@ -125,17 +139,33 @@ func codeResponse(acceptEncoding string, crw *CustomResponseWriter) (http.Header
 }
 
 func compessResponse(crw *CustomResponseWriter) ([]byte, error) {
-	var gzipBuf bytes.Buffer
-	gz := gzip.NewWriter(&gzipBuf)
+	buf := gzipBufferPool.Get().(*bytes.Buffer)
+	gz := gzipWriterPool.Get().(*gzip.Writer)
+
+	buf.Reset()
+	gz.Reset(buf)
+
 	_, err := gz.Write(crw.buf.Bytes())
 	if err != nil {
+		gz.Close()
+		gzipWriterPool.Put(gz)
+		gzipBufferPool.Put(buf)
 		return nil, err
 	}
-	err = gz.Close()
-	if err != nil {
+
+	if err := gz.Close(); err != nil {
+		gzipWriterPool.Put(gz)
+		gzipBufferPool.Put(buf)
 		return nil, err
 	}
-	return gzipBuf.Bytes(), nil
+
+	compressed := make([]byte, buf.Len(), buf.Len())
+	copy(compressed, buf.Bytes())
+
+	gzipWriterPool.Put(gz)
+	gzipBufferPool.Put(buf)
+
+	return compressed, nil
 }
 
 func decompessRequest(r *http.Request) ([]byte, error) {
