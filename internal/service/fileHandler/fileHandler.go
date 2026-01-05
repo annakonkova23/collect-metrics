@@ -22,7 +22,7 @@
 //	}
 //
 //	restored := handler.LoadFromFile()
-package fileHandler
+package filehandler
 
 import (
 	"fmt"
