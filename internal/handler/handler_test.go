@@ -52,7 +52,7 @@ func ExampleServer_StartAndListen() {
 		return
 	}
 
-	// Запускаем в отдельной горутине
+	// Запускаем сервер
 	go func() {
 		if err := server.StartAndListen(); err != nil && err != http.ErrServerClosed {
 			fmt.Printf("Ошибка запуска сервера: %v\n", err)
