@@ -73,7 +73,6 @@ type Server struct {
 // Действия:
 //   - Инициализирует роутер chi
 //   - Создаёт http.Server с обработчиком
-//   - Запускает менеджер аудита (если указаны пути/URL)
 //
 // Возвращает:
 //   - Указатель на *Server и nil в случае успеха
@@ -82,26 +81,27 @@ type Server struct {
 // Примечание: сервер не запускается автоматически — требуется вызвать StartAndListen().
 func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logger, collector *service.Collector) (*Server, error) {
 	r := chi.NewRouter()
-	srv := &Server{
+
+	server := &http.Server{
+		Addr:    cfg.Host,
+		Handler: r,
+	}
+
+	auditor, err := audit.NewAuditManager(logger, cfg.BufferSize, cfg.AuditFilePath, cfg.AuditURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Server{
 		router:    r,
 		url:       cfg.Host,
 		Collector: collector,
 		Sugar:     logger.Sugar(),
 		logger:    logger,
 		key:       cfg.Key,
-	}
-	auditor, err := audit.NewAuditManager(logger, cfg.BufferSize, cfg.AuditFilePath, cfg.AuditURL)
-	if err != nil {
-		return nil, err
-	}
-	server := &http.Server{
-		Addr:    cfg.Host,
-		Handler: r,
-	}
-	srv.srv = server
-	srv.auditor = auditor
-	srv.auditor.Start(ctx)
-	return srv, nil
+		srv:       server,
+		auditor:   auditor,
+	}, nil
 }
 
 // StartAndListen запускает HTTP-сервер и начинает прослушивать подключения.
@@ -121,7 +121,8 @@ func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logge
 //
 // В случае ошибки (кроме ErrServerClosed) возвращает ошибку.
 // Для graceful shutdown используйте Shutdown(ctx).
-func (s *Server) StartAndListen() error {
+func (s *Server) StartAndListen(ctx context.Context) error {
+	s.auditor.Start(ctx)
 	s.router.Use(mw.WithLogging(s.logger), mw.WithCompress, mw.WithCheckHash(s.key))
 	s.router.Post("/update/{type}/{name}/{value}", s.updateHandler)
 	s.router.Post("/update/", s.updateJSONHandler)
@@ -149,7 +150,7 @@ func (s *Server) StartAndListen() error {
 // Должен вызываться при завершении приложения, например через defer.
 func (s *Server) Shutdown(ctx context.Context) {
 	if err := s.srv.Shutdown(ctx); err != nil {
-		_ = s.srv.Close()
-		s.logger.Error("Ошибка при закрытии сервера", zap.Error(err))
+		errClose := s.srv.Close()
+		s.logger.Error("Ошибка при закрытии сервера", zap.Error(err), zap.Error(errClose))
 	}
 }

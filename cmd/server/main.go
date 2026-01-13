@@ -55,7 +55,7 @@ func main() {
 	)
 
 	go func() {
-		if err := h.StartAndListen(); err != nil {
+		if err := h.StartAndListen(ctx); err != nil {
 			logger.Error("Сервер завершился с ошибкой", zap.Error(err))
 		}
 	}()

@@ -33,18 +33,32 @@ func (p *Publisher) Start(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				return
+				goto DONE
 			case e := <-p.ch:
-				p.mu.RLock()
-				obs := append([]Observer(nil), p.observers...)
-				p.mu.RUnlock()
+				p.notifyAll(ctx, e)
+			}
+		}
 
-				for _, o := range obs {
-					o.Notify(ctx, e)
-				}
+	DONE:
+		for {
+			select {
+			case e := <-p.ch:
+				p.notifyAll(ctx, e)
+			default:
+				return
 			}
 		}
 	}()
+}
+
+func (p *Publisher) notifyAll(ctx context.Context, e Event) {
+	p.mu.RLock()
+	observers := append([]Observer(nil), p.observers...)
+	p.mu.RUnlock()
+
+	for _, o := range observers {
+		o.Notify(ctx, e)
+	}
 }
 
 // Publish добавление событие на публикацию.
