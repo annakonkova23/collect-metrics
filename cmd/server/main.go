@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/annakonkova23/collect-metrics/internal/config"
 	"github.com/annakonkova23/collect-metrics/internal/config/db"
@@ -57,7 +58,10 @@ func main() {
 	}()
 
 	<-ctx.Done()
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
+	h.Shutdown(shutdownCtx)
 	fmt.Println("Получен сигнал завершения. Сохраняю данные...")
 	logger.Info("Контекст завершён, сохраняю данные", zap.Error(ctx.Err()))
 

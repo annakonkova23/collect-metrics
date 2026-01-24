@@ -13,8 +13,9 @@ const (
 	defaultFileStoragePath = ""
 	//defaultFileStoragePath = "metrics.json"
 	//defaultDBDSN = ""
-	defaultDBDSN = "postgres://postgres:anna@localhost:5432/metricsdb?sslmode=disable" //"host=localhost port=5432 user=postgres password=anna dbname=metricsdb sslmode=disable"
-	defaultKey   = "key"
+	defaultDBDSN      = "postgres://postgres:anna@localhost:5432/metricsdb?sslmode=disable" //"host=localhost port=5432 user=postgres password=anna dbname=metricsdb sslmode=disable"
+	defaultKey        = "key"
+	defaultBufferSize = 100
 )
 
 type ServerOptions struct {
@@ -24,17 +25,20 @@ type ServerOptions struct {
 	FileStoragePath string
 	DatabaseDSN     string
 	Key             string
+	AuditFilePath   string
+	AuditURL        string
+	BufferSize      int
 }
 
 func getEnvString(envKey, defaultValue string) string {
-	if v := os.Getenv(envKey); v != "" {
+	if v, exists := os.LookupEnv(envKey); exists {
 		return v
 	}
 	return defaultValue
 }
 
 func getEnvInt(envKey string, defaultValue int) int {
-	if v := os.Getenv(envKey); v != "" {
+	if v, exists := os.LookupEnv(envKey); exists {
 		if i, err := strconv.Atoi(v); err == nil {
 			return i
 		}
@@ -43,7 +47,7 @@ func getEnvInt(envKey string, defaultValue int) int {
 }
 
 func getEnvBool(envKey string, defaultValue bool) bool {
-	if v := os.Getenv(envKey); v != "" {
+	if v, exists := os.LookupEnv(envKey); exists {
 		if b, err := strconv.ParseBool(v); err == nil {
 			return b
 		}
@@ -58,6 +62,9 @@ func NewServerOptions() *ServerOptions {
 	fileStoragePathFlag := flag.String("f", defaultFileStoragePath, "Путь к файлу хранения")
 	databaseDSNFlag := flag.String("d", defaultDBDSN, "Aдрес подключения к БД")
 	keyFlag := flag.String("k", defaultKey, "Ключ для хеша")
+	auditFileFlag := flag.String("audit-file", "", "Путь к файлу аудита")
+	auditURLflag := flag.String("audit-url", "", "URL для аудита")
+	bufSizeflag := flag.Int("b", defaultBufferSize, "Размер буфера каналов")
 	flag.Parse()
 
 	host := *hostFlag
@@ -66,6 +73,9 @@ func NewServerOptions() *ServerOptions {
 	fileStoragePath := *fileStoragePathFlag
 	databaseDSN := *databaseDSNFlag
 	key := *keyFlag
+	auditFile := *auditFileFlag
+	auditURL := *auditURLflag
+	bufSize := *bufSizeflag
 
 	host = getEnvString("ADDRESS", host)
 	storeInterval = getEnvInt("STORE_INTERVAL", storeInterval)
@@ -73,6 +83,9 @@ func NewServerOptions() *ServerOptions {
 	fileStoragePath = getEnvString("FILE_STORAGE_PATH", fileStoragePath)
 	databaseDSN = getEnvString("DATABASE_DSN", databaseDSN)
 	key = getEnvString("KEY", key)
+	auditFile = getEnvString("AUDIT_FILE", auditFile)
+	auditURL = getEnvString("AUDIT_URL", auditURL)
+	bufSize = getEnvInt("BUFFER_SIZE", bufSize)
 
 	return &ServerOptions{
 		Host:            host,
@@ -81,6 +94,9 @@ func NewServerOptions() *ServerOptions {
 		FileStoragePath: fileStoragePath,
 		DatabaseDSN:     databaseDSN,
 		Key:             key,
+		AuditFilePath:   auditFile,
+		AuditURL:        auditURL,
+		BufferSize:      bufSize,
 	}
 
 }
