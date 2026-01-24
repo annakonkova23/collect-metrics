@@ -2,7 +2,7 @@ package service_test
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"testing"
 
 	"github.com/annakonkova23/collect-metrics/internal/config"
@@ -16,7 +16,7 @@ import (
 func TestCollector_GetMetricJson(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Printf("%v", err)
 	}
 	defer logger.Sync()
 	metricExist := &model.Metrics{
