@@ -9,6 +9,9 @@ import (
 	"syscall"
 	"time"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/annakonkova23/collect-metrics/internal/config"
 	"github.com/annakonkova23/collect-metrics/internal/config/db"
 	"github.com/annakonkova23/collect-metrics/internal/handler"
@@ -54,6 +57,13 @@ func main() {
 	go func() {
 		if err := h.StartAndListen(); err != nil {
 			logger.Error("Сервер завершился с ошибкой", zap.Error(err))
+		}
+	}()
+
+	go func() {
+		log.Println("pprof: http://localhost:6061/debug/pprof/")
+		if err := http.ListenAndServe("localhost:6061", nil); err != nil {
+			log.Fatal(err)
 		}
 	}()
 

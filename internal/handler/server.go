@@ -24,8 +24,9 @@ type Server struct {
 }
 
 func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logger, collector *service.Collector) (*Server, error) {
+	r := chi.NewRouter()
 	srv := &Server{
-		router:    chi.NewRouter(),
+		router:    r,
 		url:       cfg.Host,
 		Collector: collector,
 		Sugar:     logger.Sugar(),
@@ -38,7 +39,7 @@ func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logge
 	}
 	server := &http.Server{
 		Addr:    cfg.Host,
-		Handler: srv.router,
+		Handler: r,
 	}
 	srv.srv = server
 	srv.auditor = auditor
