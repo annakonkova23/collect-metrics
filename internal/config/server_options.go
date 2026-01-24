@@ -13,7 +13,7 @@ const (
 	defaultFileStoragePath = ""
 	//defaultFileStoragePath = "metrics.json"
 	//defaultDBDSN = ""
-	defaultDBDSN      = "postgres://postgres:anna@localhost:5432/metricsdb?sslmode=disable" //"host=localhost port=5432 user=postgres password=anna dbname=metricsdb sslmode=disable"
+	//defaultDBDSN      = "postgres://postgres:anna@localhost:5432/metricsdb?sslmode=disable" //"host=localhost port=5432 user=postgres password=anna dbname=metricsdb sslmode=disable"
 	defaultKey        = "key"
 	defaultBufferSize = 100
 )
@@ -55,12 +55,13 @@ func getEnvBool(envKey string, defaultValue bool) bool {
 	return defaultValue
 }
 
+// NewServerOptions создает новый экземпляр ServerOptions с значениями по умолчанию.
 func NewServerOptions() *ServerOptions {
 	hostFlag := flag.String("a", defaultHost, "Хост")
 	storeIntervalFlag := flag.Int("i", defaultStoreInterval, "Интервал сохранения данных (сек)")
 	restoreFlag := flag.Bool("r", defaultRestore, "Восстанавливать данные из файла")
 	fileStoragePathFlag := flag.String("f", defaultFileStoragePath, "Путь к файлу хранения")
-	databaseDSNFlag := flag.String("d", defaultDBDSN, "Aдрес подключения к БД")
+	databaseDSNFlag := flag.String("d", "", "Aдрес подключения к БД")
 	keyFlag := flag.String("k", defaultKey, "Ключ для хеша")
 	auditFileFlag := flag.String("audit-file", "", "Путь к файлу аудита")
 	auditURLflag := flag.String("audit-url", "", "URL для аудита")

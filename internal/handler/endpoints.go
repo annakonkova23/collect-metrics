@@ -24,9 +24,6 @@ func (s *Server) updateHandler(w http.ResponseWriter, r *http.Request) {
 	paramType := chi.URLParam(r, "type")
 	paramValue := chi.URLParam(r, "value")
 	s.logger.Debug(fmt.Sprintf("updateHandler param:%s %s %s", paramName, paramType, paramValue))
-	defer func() {
-		s.auditor.Publish(r.Context(), audit.Event{Time: time.Now(), Metrics: model.GetListIDMetrics([]*model.Metrics{{ID: paramName}}), IP: s.getIP(r)})
-	}()
 	err := s.Collector.SaveMetricsByParam(r.Context(), paramName, paramType, paramValue)
 	if err != nil {
 		if errors.Is(err, service.ErrorNotFound) {
@@ -40,6 +37,7 @@ func (s *Server) updateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
+	s.auditor.Publish(r.Context(), audit.Event{Time: time.Now(), Metrics: model.GetListIDMetrics([]*model.Metrics{{ID: paramName}}), IP: s.getIP(r)})
 }
 
 func (s *Server) updateJSONHandler(w http.ResponseWriter, r *http.Request) {
@@ -56,9 +54,6 @@ func (s *Server) updateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	s.logger.Debug("updateJsonHandler BODY:" + string(bodyBytes))
 	metric := &model.Metrics{}
 	metric.UnmarshalJSON(bodyBytes)
-	defer func() {
-		s.auditor.Publish(r.Context(), audit.Event{Time: time.Now(), Metrics: model.GetListIDMetrics([]*model.Metrics{metric}), IP: s.getIP(r)})
-	}()
 	metrics, err := s.Collector.SaveMetrics(r.Context(), []*model.Metrics{metric})
 	if err != nil {
 		s.logger.Error(err.Error(), zap.String("Body", string(bodyBytes)))
@@ -70,7 +65,7 @@ func (s *Server) updateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(value)
-
+	s.auditor.Publish(r.Context(), audit.Event{Time: time.Now(), Metrics: model.GetListIDMetrics([]*model.Metrics{metric}), IP: s.getIP(r)})
 }
 
 func (s *Server) valueHandler(w http.ResponseWriter, r *http.Request) {
@@ -199,9 +194,6 @@ func (s *Server) updateSeveralJSONHandler(w http.ResponseWriter, r *http.Request
 		s.logger.Error("Некорректный json:" + err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
-	defer func() {
-		s.auditor.Publish(r.Context(), audit.Event{Time: time.Now(), Metrics: model.GetListIDMetrics(metrics), IP: s.getIP(r)})
-	}()
 	metrics, err = s.Collector.SaveMetrics(r.Context(), metrics)
 	if err != nil {
 		s.logger.Error(err.Error(), zap.String("Body", string(bodyBytes)))
@@ -214,7 +206,7 @@ func (s *Server) updateSeveralJSONHandler(w http.ResponseWriter, r *http.Request
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(value)
-
+	s.auditor.Publish(r.Context(), audit.Event{Time: time.Now(), Metrics: model.GetListIDMetrics(metrics), IP: s.getIP(r)})
 }
 
 func (s *Server) getIP(r *http.Request) string {

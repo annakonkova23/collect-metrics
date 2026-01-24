@@ -11,6 +11,8 @@ type RMetric int
 const (
 	nameCounter = "PollCount"
 )
+
+// Константы для всех Runtime метрик.
 const (
 	Alloc RMetric = iota
 	BuckHashSys
@@ -113,6 +115,8 @@ func NewRuntimeMetric() *RuntimeMetric {
 		Metrics: make(map[string]float64),
 	}
 }
+
+// CalcMetric - метод для расчета метрик.
 func (rm *RuntimeMetric) CalcMetric() map[string]float64 {
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
@@ -180,6 +184,7 @@ func (rm *RuntimeMetric) CalcMetric() map[string]float64 {
 	return valMetric
 }
 
+// UpdateMetric - метод для обновления метрик.
 func (rm *RuntimeMetric) UpdateMetric() {
 	valMetric := rm.CalcMetric()
 	rm.mx.Lock()
@@ -190,6 +195,7 @@ func (rm *RuntimeMetric) UpdateMetric() {
 	rm.Metrics[nameCounter] = rm.Metrics[nameCounter] + 1
 }
 
+// GetTypeMetric - метод для определения типа метрики.
 func (rm *RuntimeMetric) GetTypeMetric(name string) string {
 	if name == nameCounter {
 		return Counter

@@ -59,6 +59,7 @@ func main() {
 
 }
 
+// checkCfg проверяет корректность параметров конфигурации
 func checkCfg(cfg *config.AgentOptions) error {
 	var errs []error
 	if cfg.Host == "" {

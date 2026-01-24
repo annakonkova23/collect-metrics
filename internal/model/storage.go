@@ -9,17 +9,20 @@ import (
 	"sync"
 )
 
+// MemStorage - хранилище метрик в памяти
 type MemStorage struct {
 	mx      sync.RWMutex
 	metrics []*Metrics
 }
 
+// NewMemStorage - конструктор хранилища метрик в памяти
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
 		metrics: make([]*Metrics, 0),
 	}
 }
 
+// SetMetric - добавляет метрику в хранилище
 func (ms *MemStorage) SetMetric(metric *Metrics) (*Metrics, error) {
 	var errs []error
 
@@ -83,6 +86,7 @@ func (ms *MemStorage) SetMetric(metric *Metrics) (*Metrics, error) {
 	return metricResult, nil
 }
 
+// String - возвращает строковое представление хранилища
 func (ms *MemStorage) String() string {
 	ms.mx.RLock()
 	defer ms.mx.RUnlock()
@@ -90,6 +94,7 @@ func (ms *MemStorage) String() string {
 	return string(js)
 }
 
+// GetMetricValue - возвращает значение метрики.
 func (ms *MemStorage) GetMetricValue(name, typeMetric string) (string, bool) {
 	ms.mx.RLock()
 	defer ms.mx.RUnlock()
@@ -116,6 +121,7 @@ func (ms *MemStorage) GetMetricValue(name, typeMetric string) (string, bool) {
 	return "", false
 }
 
+// GetMetric - возвращает метрику по имени и типу.
 func (ms *MemStorage) GetMetric(name, typeMetric string) (*Metrics, bool) {
 	ms.mx.RLock()
 	defer ms.mx.RUnlock()
@@ -132,6 +138,7 @@ func (ms *MemStorage) GetMetric(name, typeMetric string) (*Metrics, bool) {
 	return nil, false
 }
 
+// GetMetricAllValues - возвращает все метрики.
 func (ms *MemStorage) GetMetricAllValues() []*Metrics {
 	ms.mx.RLock()
 	defer ms.mx.RUnlock()
@@ -142,6 +149,7 @@ func (ms *MemStorage) GetMetricAllValues() []*Metrics {
 	return metrics
 }
 
+// InitMetrics - инициализирует метрики.
 func (ms *MemStorage) InitMetrics(mts []*Metrics) {
 	ms.mx.Lock()
 	defer ms.mx.Unlock()

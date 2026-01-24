@@ -3,7 +3,6 @@ package audit
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/go-resty/resty/v2"
@@ -17,6 +16,18 @@ type HTTPObserver struct {
 	logger *zap.Logger
 }
 
+// NewHTTPObserver создаёт новый HTTP-наблюдатель, отправляющий аудит-события на удалённый сервер.
+//
+// Наблюдатель работает асинхронно: события помещаются в канал с заданным размером буфера
+// и отправляются в фоновом режиме через HTTP POST-запросы с Content-Type: application/json.
+//
+// Параметры:
+//   - logger: логгер для записи ошибок и отладочной информации.
+//   - url: адрес HTTP-эндпоинта, куда будут отправляться события (например, "http://localhost:8080/audit").
+//   - bufferSize: размер внутреннего канала событий; определяет, сколько событий можно накопить до блокировки.
+//     Если 0, используется значение по умолчанию (100).
+//
+// Возвращает указатель на *HTTPObserver.
 func NewHTTPObserver(logger *zap.Logger, url string, bufferSize int) *HTTPObserver {
 	return &HTTPObserver{
 		client: resty.New(),
@@ -26,8 +37,8 @@ func NewHTTPObserver(logger *zap.Logger, url string, bufferSize int) *HTTPObserv
 	}
 }
 
-// Start запускай при старте приложения, чтобы был воркер отправки.
-// ctx — общий контекст приложения (на shutdown отменится).
+// Start при старте приложения, чтобы был воркер отправки.
+// ctx — общий контекст приложения.
 func (o *HTTPObserver) Start(ctx context.Context) {
 	go func() {
 		for {
@@ -41,22 +52,16 @@ func (o *HTTPObserver) Start(ctx context.Context) {
 	}()
 }
 
-// Notify должен быть быстрым: просто пытается enqueue.
-// Если очередь заполнена — дропаем, чтобы не повесить API.
+// Notify добавление события в очередь.
 func (o *HTTPObserver) Notify(_ context.Context, e Event) {
-	fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-	fmt.Println("Notify")
 	select {
 	case o.ch <- e:
 	default:
-		// очередь забита — дропаем событие (можно добавить счетчик dropped_http_audit)
 	}
 }
 
+// send отправка события.
 func (o *HTTPObserver) send(e Event) {
-	fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-
-	fmt.Println("Отправка запроса!")
 	body, err := json.Marshal(e)
 	if err != nil {
 		return

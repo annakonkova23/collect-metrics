@@ -31,6 +31,7 @@ type CustomResponseWriter struct {
 	wroteHeader bool
 }
 
+// NewCustomResponseWriter Создает новый экземпляр CustomResponseWriter.
 func NewCustomResponseWriter(w http.ResponseWriter) *CustomResponseWriter {
 	return &CustomResponseWriter{
 		w:          w,
@@ -40,12 +41,12 @@ func NewCustomResponseWriter(w http.ResponseWriter) *CustomResponseWriter {
 	}
 }
 
-// Возвращает внутренний заголовок (временное хранилище)
+// Header Возвращает внутренний заголовок (временное хранилище).
 func (crw *CustomResponseWriter) Header() http.Header {
 	return crw.header
 }
 
-// Сохраняет статус-код, но не пишет в оригинальный writer
+// WriteHeader Сохраняет статус-код.
 func (crw *CustomResponseWriter) WriteHeader(statusCode int) {
 	if crw.wroteHeader {
 		return
@@ -54,10 +55,35 @@ func (crw *CustomResponseWriter) WriteHeader(statusCode int) {
 	crw.wroteHeader = true
 }
 
+// Write Пишет в буфер.
 func (crw *CustomResponseWriter) Write(b []byte) (int, error) {
 	return crw.buf.Write(b)
 }
 
+// WithCompress — middleware для автоматического сжатия ответов и распаковки запросов с использованием gzip.
+//
+// Обрабатывает входящие запросы:
+//   - Если заголовок "Content-Encoding: gzip" присутствует, тело запроса автоматически распаковывается.
+//   - Поддерживает типы: application/json, text/html.
+//
+// Формирует исходящие ответы:
+//   - Если клиент отправил "Accept-Encoding: gzip" и Content-Type поддерживается,
+//     ответ сжимается с помощью gzip и добавляется заголовок "Content-Encoding: gzip".
+//
+// Middleware прозрачно интегрируется в цепочку обработки HTTP-запросов.
+// Использует кастомный ResponseWriter (CustomResponseWriter) для перехвата тела ответа до отправки.
+//
+// Пример применения:
+//
+//	r := chi.NewRouter()
+//	r.Use(middleware.WithCompress)
+//	r.Post("/update", updateHandler)
+//
+// Важно:
+//   - Не модифицирует поведение для методов, не поддерживаемых по Content-Type.
+//   - Ошибки декодирования или сжатия возвращаются с кодом 400.
+//
+// Возвращает http.Handler, оборачивающий исходный обработчик h.
 func WithCompress(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

@@ -33,9 +33,20 @@ func equalHash(r *http.Request, key string) error {
 		return errors.New("хеши не совпадают")
 	}
 	return nil
-
 }
 
+// WithCheckHash возвращает middleware, которое проверяет подпись тела запроса
+// с помощью HMAC-SHA256 в заголовке "HashSHA256".
+//
+// Использование:
+//
+//	r.Use(middleware.WithCheckHash("my-super-secret-key"))
+//
+// Поведение:
+//   - Для каждого запроса вычисляется HMAC от тела с использованием переданного ключа.
+//   - Сравнивается с hex-кодированным значением из заголовка HashSHA256.
+//   - Если проверка не пройдена — возвращается 400 Bad Request.
+//   - Если ключ пустой — middleware не выполняет проверку.
 func WithCheckHash(key string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

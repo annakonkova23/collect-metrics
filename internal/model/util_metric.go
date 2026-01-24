@@ -7,16 +7,19 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
+// UtilMetric - метрики утилизации
 type UtilMetric struct {
 	TotalMemory     uint64
 	FreeMemory      uint64
 	CPUUtilization1 float64
 }
 
+// NewUtilMetric - конструктор.
 func NewUtilMetric() *UtilMetric {
 	return &UtilMetric{}
 }
 
+// CalcUtilMetrics - расчет метрик утилизации.
 func CalcUtilMetrics() (*UtilMetric, error) {
 
 	memStats, err := mem.VirtualMemory()
@@ -36,6 +39,7 @@ func CalcUtilMetrics() (*UtilMetric, error) {
 	}, nil
 }
 
+// CalcMetric - расчет метрики.
 func (m *UtilMetric) CalcMetric() (map[string]float64, error) {
 	utilMetric, err := CalcUtilMetrics()
 	if err != nil {
@@ -48,6 +52,7 @@ func (m *UtilMetric) CalcMetric() (map[string]float64, error) {
 	return result, nil
 }
 
+// GetTypeMetric - тип метрики.
 func (m *UtilMetric) GetTypeMetric() string {
 	return Gauge
 }

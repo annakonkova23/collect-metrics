@@ -11,11 +11,13 @@ import (
 	"go.uber.org/zap"
 )
 
+// Константы для retry.
 const (
-	countAttempt = 3
-	delayAttempt = 2
+	countAttempt = 3 //количество попыток
+	delayAttempt = 2 //задержка между попытками
 )
 
+// RetryLoadMetricsToDB загрузка метрик из БД.
 func (s *DBStore) RetryLoadMetricsToDB(ctx context.Context, delay int) ([]*model.Metrics, error) {
 	var metrics []*model.Metrics
 	var err error
@@ -41,6 +43,7 @@ func (s *DBStore) RetryLoadMetricsToDB(ctx context.Context, delay int) ([]*model
 	return metrics, err
 }
 
+// SaveMetricsToDB сохранение метрик в БД.
 func (s *DBStore) SaveMetricsToDB(ctx context.Context, metrics []*model.Metrics) error {
 	tx, err := s.database.DB.Begin()
 	if err != nil {

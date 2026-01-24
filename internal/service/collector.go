@@ -19,13 +19,14 @@ import (
 
 var ErrorNotFound = errors.New("not exists name metric")
 
+// Collector - структура для сбора метрик и их хранения.
 type Collector struct {
-	MemStorage    *model.MemStorage
-	logger        *zap.Logger
-	fileHandler   *fh.FileHandler
-	StoreInterval int
-	mx            sync.RWMutex
-	conn          *repository.DBStore
+	MemStorage    *model.MemStorage   // Хранилище метрик в памяти
+	logger        *zap.Logger         // Логгер для вывода сообщений
+	fileHandler   *fh.FileHandler     // Обработчик файлов для сохранения метрик
+	StoreInterval int                 // Интервал сохранения метрик в файл или БД
+	mx            sync.RWMutex        // Мьютекс для синхронизации доступа к хранилищу метрик
+	conn          *repository.DBStore // Соединение с БД для сохранения метрик
 }
 
 type Metric struct {
@@ -34,6 +35,17 @@ type Metric struct {
 	Value string
 }
 
+// NewCollector - конструктор для создания экземпляра Collector.
+
+// Параметры:
+//   - ctx: контекст приложения
+//   - cfg: конфигурация сервера
+//   - logger: логгер для вывода сообщений
+//   - dbConnect: соединение с БД
+
+// Возвращает:
+//   - *Collector: указатель на созданный экземпляр Collector
+//   - error: ошибка при создании экземпляра или при инициализации хранилища метрик
 func NewCollector(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logger, dbConnect *sql.DB) (*Collector, error) {
 	clr := &Collector{
 		StoreInterval: cfg.StoreInterval,
@@ -73,6 +85,7 @@ func NewCollector(ctx context.Context, cfg *config.ServerOptions, logger *zap.Lo
 	return clr, nil
 }
 
+// initMemStorageFromFile - инициализация хранилища метрик из файла.
 func (c *Collector) initMemStorageFromFile() error {
 	data := c.fileHandler.LoadFromFile()
 	var metrics []*model.Metrics
@@ -88,6 +101,7 @@ func (c *Collector) initMemStorageFromFile() error {
 	return nil
 }
 
+// initMemStorageFromDB - инициализация хранилища метрик из БД.
 func (c *Collector) initMemStorageFromDB(ctx context.Context) error {
 	metrics, err := c.conn.RetryLoadMetricsToDB(ctx, 1)
 	if err != nil {
@@ -99,6 +113,7 @@ func (c *Collector) initMemStorageFromDB(ctx context.Context) error {
 	return nil
 }
 
+// SaveMetricByParam - сохранение метрики по имени и типу.
 func (c *Collector) SaveMetricsByParam(ctx context.Context, name, typeMetric, value string) error {
 	metric := &model.Metrics{
 		ID:    name,
@@ -125,12 +140,14 @@ func (c *Collector) SaveMetricsByParam(ctx context.Context, name, typeMetric, va
 	return nil
 }
 
+// GetMetricValueByParam - получение значения метрики по имени и типу.
 func (c *Collector) GetMetricValueByParam(nameMetric, typeMetric string) (string, bool) {
 	value, ok := c.MemStorage.GetMetricValue(nameMetric, typeMetric)
 	return value, ok
 
 }
 
+// GetMetricJSON - получение метрики в формате JSON.
 func (c *Collector) GetMetricJSON(nameMetric, typeMetric string) (string, error) {
 	metric, ok := c.MemStorage.GetMetric(nameMetric, typeMetric)
 	if !ok {
@@ -143,6 +160,7 @@ func (c *Collector) GetMetricJSON(nameMetric, typeMetric string) (string, error)
 
 }
 
+// GetMetricAllValues - получение всех метрик.
 func (c *Collector) GetMetricAllValues() []*Metric {
 	metric := c.MemStorage.GetMetricAllValues()
 	metricResult := make([]*Metric, len(metric))
@@ -165,6 +183,7 @@ func (c *Collector) GetMetricAllValues() []*Metric {
 
 }
 
+// ProcessUploadFile - процесс сохранения метрик в файл.
 func (c *Collector) ProcessUploadFile(ctx context.Context) {
 	if c.StoreInterval == 0 {
 		c.logger.Info("Процесс записи в файл не будет запущен")
@@ -183,6 +202,7 @@ func (c *Collector) ProcessUploadFile(ctx context.Context) {
 	}
 }
 
+// GetDataAndSaveToFile - получение данных из хранилища и сохранение в файл.
 func (c *Collector) GetDataAndSaveToFile() {
 	if c.fileHandler == nil {
 		return
@@ -198,6 +218,7 @@ func (c *Collector) GetDataAndSaveToFile() {
 	}
 }
 
+// SaveMetrics - сохранение метрик в хранилище.
 func (c *Collector) SaveMetrics(ctx context.Context, metrics []*model.Metrics) ([]*model.Metrics, error) {
 	c.mx.Lock()
 	defer c.mx.Unlock()
@@ -222,6 +243,7 @@ func (c *Collector) SaveMetrics(ctx context.Context, metrics []*model.Metrics) (
 
 }
 
+// PingDB - проверка подключения к БД.
 func (c *Collector) PingDB() error {
 	return c.conn.Ping()
 }
