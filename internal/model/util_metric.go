@@ -7,6 +7,7 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
+// generate:reset
 // UtilMetric - метрики утилизации
 type UtilMetric struct {
 	TotalMemory     uint64

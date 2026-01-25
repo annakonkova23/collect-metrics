@@ -12,6 +12,7 @@ const (
 // и соответственно не кодировать в структуру.
 //
 //easyjson:json
+// generate:reset
 type Metrics struct {
 	ID    string   `json:"id"`
 	MType string   `json:"type"`
