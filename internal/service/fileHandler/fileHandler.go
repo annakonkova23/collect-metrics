@@ -34,6 +34,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// generate:reset
 type FileHandler struct {
 	mx       sync.RWMutex
 	filePath string
