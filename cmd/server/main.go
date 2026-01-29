@@ -19,7 +19,14 @@ import (
 	"go.uber.org/zap"
 )
 
+var buildVersion string
+var buildDate string
+var buildCommit string
+
 func main() {
+
+	printBuildInfo()
+
 	options := config.NewServerOptions()
 
 	ctx, stop := signal.NotifyContext(context.Background(),
@@ -79,3 +86,16 @@ func main() {
 }
 
 ///github.com/annakonkova23/collect-metrics
+
+func na(v string) string {
+	if v == "" {
+		return "N/A"
+	}
+	return v
+}
+
+func printBuildInfo() {
+	fmt.Printf("Build version: %s\n", na(buildVersion))
+	fmt.Printf("Build date: %s\n", na(buildDate))
+	fmt.Printf("Build commit: %s\n", na(buildCommit))
+}
