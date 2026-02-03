@@ -25,7 +25,7 @@ var buildCommit string
 
 func main() {
 
-	printBuildInfo()
+	config.PrintBuildInfo(buildVersion, buildDate, buildCommit)
 
 	options := config.NewServerOptions()
 
@@ -86,16 +86,3 @@ func main() {
 }
 
 ///github.com/annakonkova23/collect-metrics
-
-func na(v string) string {
-	if v == "" {
-		return "N/A"
-	}
-	return v
-}
-
-func printBuildInfo() {
-	fmt.Printf("Build version: %s\n", na(buildVersion))
-	fmt.Printf("Build date: %s\n", na(buildDate))
-	fmt.Printf("Build commit: %s\n", na(buildCommit))
-}

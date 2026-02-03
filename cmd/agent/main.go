@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -23,7 +22,7 @@ var buildCommit string
 
 func main() {
 
-	printBuildInfo()
+	config.PrintBuildInfo(buildVersion, buildDate, buildCommit)
 
 	cfg := config.NewAgentOptions()
 
@@ -90,17 +89,4 @@ func checkCfg(cfg *config.AgentOptions) error {
 		return errors.Join(errs...)
 	}
 	return nil
-}
-
-func na(v string) string {
-	if v == "" {
-		return "N/A"
-	}
-	return v
-}
-
-func printBuildInfo() {
-	fmt.Printf("Build version: %s\n", na(buildVersion))
-	fmt.Printf("Build date: %s\n", na(buildDate))
-	fmt.Printf("Build commit: %s\n", na(buildCommit))
 }
