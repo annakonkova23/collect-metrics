@@ -19,7 +19,14 @@ import (
 	"go.uber.org/zap"
 )
 
+var buildVersion string
+var buildDate string
+var buildCommit string
+
 func main() {
+
+	config.PrintBuildInfo(buildVersion, buildDate, buildCommit)
+
 	options := config.NewServerOptions()
 
 	ctx, stop := signal.NotifyContext(context.Background(),
