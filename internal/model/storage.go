@@ -9,6 +9,7 @@ import (
 	"sync"
 )
 
+// generate:reset
 // MemStorage - хранилище метрик в памяти
 type MemStorage struct {
 	mx      sync.RWMutex

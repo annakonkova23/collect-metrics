@@ -74,6 +74,7 @@ var allMetrics = []RMetric{Alloc,
 	TotalAlloc,
 }
 
+// generate:reset
 type RuntimeMetric struct {
 	Metrics map[string]float64
 	mx      sync.RWMutex
