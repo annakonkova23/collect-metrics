@@ -28,6 +28,7 @@ type ServerOptions struct {
 	AuditFilePath   string
 	AuditURL        string
 	BufferSize      int
+	KeyPath         string
 }
 
 func getEnvString(envKey, defaultValue string) string {
@@ -66,6 +67,7 @@ func NewServerOptions() *ServerOptions {
 	auditFileFlag := flag.String("audit-file", "", "Путь к файлу аудита")
 	auditURLflag := flag.String("audit-url", "", "URL для аудита")
 	bufSizeflag := flag.Int("b", defaultBufferSize, "Размер буфера каналов")
+	keyPathFlag := flag.String("crypto-key", "", "Путь до приватного ключа")
 	flag.Parse()
 
 	host := *hostFlag
@@ -77,6 +79,7 @@ func NewServerOptions() *ServerOptions {
 	auditFile := *auditFileFlag
 	auditURL := *auditURLflag
 	bufSize := *bufSizeflag
+	keyPath := *keyPathFlag
 
 	host = getEnvString("ADDRESS", host)
 	storeInterval = getEnvInt("STORE_INTERVAL", storeInterval)
@@ -87,6 +90,7 @@ func NewServerOptions() *ServerOptions {
 	auditFile = getEnvString("AUDIT_FILE", auditFile)
 	auditURL = getEnvString("AUDIT_URL", auditURL)
 	bufSize = getEnvInt("BUFFER_SIZE", bufSize)
+	keyPath = getEnvString("CRYPTO_KEY", keyPath)
 
 	return &ServerOptions{
 		Host:            host,
@@ -98,6 +102,7 @@ func NewServerOptions() *ServerOptions {
 		AuditFilePath:   auditFile,
 		AuditURL:        auditURL,
 		BufferSize:      bufSize,
+		KeyPath:         keyPath,
 	}
 
 }

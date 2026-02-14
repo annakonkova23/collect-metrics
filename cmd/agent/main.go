@@ -49,7 +49,7 @@ func main() {
 		zap.Int("ReportInterval", cfg.ReportInterval),
 		zap.Int("RateLimit", cfg.RateLimiter))
 
-	sender := service.NewSender(URL, cfg.PollInterval, cfg.ReportInterval, cfg.Key, logger)
+	sender := service.NewSender(URL, cfg.PollInterval, cfg.ReportInterval, cfg.Key, cfg.KeyPath, logger)
 	logger.Info("Отправитель создан")
 
 	sender.Start(ctx, cfg.RateLimiter)

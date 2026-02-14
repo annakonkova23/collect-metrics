@@ -16,6 +16,7 @@ type AgentOptions struct {
 	ReportInterval int
 	Key            string
 	RateLimiter    int
+	KeyPath        string
 }
 
 // NewAgentOptions создает новый объект AgentOptions.
@@ -25,6 +26,7 @@ func NewAgentOptions() *AgentOptions {
 	reportIntervalFlag := flag.Int("r", defaultReportInterval, "Частота отправки метрик на сервер (в секундах)")
 	keyFlag := flag.String("k", defaultKey, "Ключ для хеша")
 	rateLimiterFlag := flag.Int("l", defaultRateLimiter, "Rate limiter")
+	keyPathFlag := flag.String("crypto-key", "", "Путь до публичного ключа")
 	flag.Parse()
 
 	host := *hostFlag
@@ -32,12 +34,14 @@ func NewAgentOptions() *AgentOptions {
 	reportInterval := *reportIntervalFlag
 	key := *keyFlag
 	rateLimiter := *rateLimiterFlag
+	keyPath := *keyPathFlag
 
 	host = getEnvString("ADDRESS", host)
 	pollInterval = getEnvInt("POLL_INTERVAL", pollInterval)
 	reportInterval = getEnvInt("REPORT_INTERVAL", reportInterval)
 	key = getEnvString("KEY", key)
 	rateLimiter = getEnvInt("RATE_LIMIT", rateLimiter)
+	keyPath = getEnvString("CRYPTO_KEY", keyPath)
 
 	return &AgentOptions{
 		Host:           host,
@@ -45,5 +49,6 @@ func NewAgentOptions() *AgentOptions {
 		ReportInterval: reportInterval,
 		Key:            key,
 		RateLimiter:    rateLimiter,
+		KeyPath:        keyPath,
 	}
 }

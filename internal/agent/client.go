@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/rsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -14,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/annakonkova23/collect-metrics/internal/model"
 	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
 )
@@ -30,10 +33,16 @@ type Client struct {
 	Sugar          *zap.SugaredLogger
 	gzipWriterPool sync.Pool
 	bufferPool     sync.Pool
+	key            *rsa.PublicKey
 }
 
 // NewClient создание клиента.
-func NewClient(sugar *zap.SugaredLogger) *Client {
+func NewClient(keyPath string, sugar *zap.SugaredLogger) *Client {
+	key, err := ReadPublicKey(keyPath)
+	if err != nil {
+		sugar.Errorln(err)
+	}
+
 	return &Client{
 		client: resty.New(),
 		Sugar:  sugar,
@@ -47,6 +56,7 @@ func NewClient(sugar *zap.SugaredLogger) *Client {
 				return new(bytes.Buffer)
 			},
 		},
+		key: key,
 	}
 }
 
@@ -71,6 +81,22 @@ func (c *Client) Post(url string) error {
 func (c *Client) PostWithBody(ctx context.Context, url string, body []byte, hash string) error {
 	delay := 1
 
+	if c.key != nil {
+		key, data, err := HybridEncrypt(c.key, body)
+		if err != nil {
+			return err
+		}
+		reqBody := model.EncryptedRequest{
+			EncryptedKey:  key,
+			EncryptedData: data,
+		}
+
+		data, err = json.Marshal(reqBody)
+		if err != nil {
+			return err
+		}
+		body = data
+	}
 	buf := c.bufferPool.Get().(*bytes.Buffer)
 	gz := c.gzipWriterPool.Get().(*gzip.Writer)
 

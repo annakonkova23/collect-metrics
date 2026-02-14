@@ -29,9 +29,9 @@ type Sender struct {
 // - reportInterval: Интервал отправки метрик
 // - key: Ключ для подписи метрик
 // - logger: Логгер
-func NewSender(url string, pollInterval, reportInterval int, key string, logger *zap.Logger) *Sender {
+func NewSender(url string, pollInterval, reportInterval int, key string, keyPath string, logger *zap.Logger) *Sender {
 	return &Sender{
-		client:         agent.NewClient(logger.Sugar()),
+		client:         agent.NewClient(keyPath, logger.Sugar()),
 		updMetric:      NewMetricsUpdater(logger, pollInterval),
 		url:            url,
 		reportInterval: reportInterval,
