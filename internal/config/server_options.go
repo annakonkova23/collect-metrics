@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"log"
 	"os"
 	"strconv"
 )
@@ -29,6 +30,7 @@ type ServerOptions struct {
 	AuditURL        string
 	BufferSize      int
 	KeyPath         string
+	FileConfig      string
 }
 
 func getEnvString(envKey, defaultValue string) string {
@@ -58,51 +60,146 @@ func getEnvBool(envKey string, defaultValue bool) bool {
 
 // NewServerOptions создает новый экземпляр ServerOptions с значениями по умолчанию.
 func NewServerOptions() *ServerOptions {
-	hostFlag := flag.String("a", defaultHost, "Хост")
-	storeIntervalFlag := flag.Int("i", defaultStoreInterval, "Интервал сохранения данных (сек)")
-	restoreFlag := flag.Bool("r", defaultRestore, "Восстанавливать данные из файла")
-	fileStoragePathFlag := flag.String("f", defaultFileStoragePath, "Путь к файлу хранения")
+	serverOptions := &ServerOptions{}
+
+	serverOptionsFlag := getServerOptionsFromFlag()
+
+	serverOptionsEnv := getServerOptionsFromEnv(serverOptionsFlag)
+
+	serverOptions = serverOptionsEnv
+
+	if serverOptions.FileConfig != "" {
+		so, err := getServerOptionsFromFile(serverOptions.FileConfig)
+		if err != nil {
+			log.Printf("Не удалось считать конфигурацию из файла %s: %s", serverOptions.FileConfig, err.Error())
+		}
+		serverOptions.CompareAndAddValues(so)
+	}
+
+	return serverOptions
+
+}
+
+func getServerOptionsFromEnv(def *ServerOptions) *ServerOptions {
+
+	serverOptions := &ServerOptions{}
+
+	serverOptions.Host = getEnvString("ADDRESS", def.Host)
+	serverOptions.StoreInterval = getEnvInt("STORE_INTERVAL", def.StoreInterval)
+	serverOptions.Restore = getEnvBool("RESTORE", def.Restore)
+	serverOptions.FileStoragePath = getEnvString("FILE_STORAGE_PATH", def.FileStoragePath)
+	serverOptions.DatabaseDSN = getEnvString("DATABASE_DSN", def.DatabaseDSN)
+	serverOptions.Key = getEnvString("KEY", def.Key)
+	serverOptions.AuditFilePath = getEnvString("AUDIT_FILE", def.AuditFilePath)
+	serverOptions.AuditURL = getEnvString("AUDIT_URL", def.AuditURL)
+	serverOptions.BufferSize = getEnvInt("BUFFER_SIZE", def.BufferSize)
+	serverOptions.KeyPath = getEnvString("CRYPTO_KEY", def.KeyPath)
+	serverOptions.FileConfig = getEnvString("CONFIG", def.FileConfig)
+
+	return serverOptions
+}
+
+func getServerOptionsFromFile(path string) (*ServerOptions, error) {
+	config, err := ReadJsonConfig(path)
+	if err != nil {
+		return nil, err
+	}
+
+	so := &ServerOptions{}
+
+	for key, value := range config {
+		switch key {
+		case "address":
+			so.Host = value.(string)
+		case "store_interval":
+			so.StoreInterval = int(value.(float64))
+		case "restore":
+			so.Restore = value.(bool)
+		case "file_storage_path":
+			so.FileStoragePath = value.(string)
+		case "database_dsn":
+			so.DatabaseDSN = value.(string)
+		case "key":
+			so.Key = value.(string)
+		case "audit_file":
+			so.AuditFilePath = value.(string)
+		case "audit_url":
+			so.AuditURL = value.(string)
+		case "buffer_size":
+			so.BufferSize = int(value.(float64))
+		case "crypto_key":
+			so.KeyPath = value.(string)
+
+		}
+	}
+
+	return so, nil
+}
+
+func getServerOptionsFromFlag() *ServerOptions {
+	hostFlag := flag.String("a", "", "Хост")
+	storeIntervalFlag := flag.Int("i", 0, "Интервал сохранения данных (сек)")
+	restoreFlag := flag.Bool("r", false, "Восстанавливать данные из файла")
+	fileStoragePathFlag := flag.String("f", "", "Путь к файлу хранения")
 	databaseDSNFlag := flag.String("d", "", "Aдрес подключения к БД")
-	keyFlag := flag.String("k", defaultKey, "Ключ для хеша")
+	keyFlag := flag.String("k", "", "Ключ для хеша")
 	auditFileFlag := flag.String("audit-file", "", "Путь к файлу аудита")
 	auditURLflag := flag.String("audit-url", "", "URL для аудита")
-	bufSizeflag := flag.Int("b", defaultBufferSize, "Размер буфера каналов")
+	bufSizeflag := flag.Int("b", 0, "Размер буфера каналов")
 	keyPathFlag := flag.String("crypto-key", "", "Путь до приватного ключа")
+	fileConfigFlag := flag.String("c", "server.json", "Путь до файла конфигурации")
+	fileConfigFlag = flag.String("config", *fileConfigFlag, "Путь до файла конфигурации")
 	flag.Parse()
 
-	host := *hostFlag
-	storeInterval := *storeIntervalFlag
-	restore := *restoreFlag
-	fileStoragePath := *fileStoragePathFlag
-	databaseDSN := *databaseDSNFlag
-	key := *keyFlag
-	auditFile := *auditFileFlag
-	auditURL := *auditURLflag
-	bufSize := *bufSizeflag
-	keyPath := *keyPathFlag
+	so := &ServerOptions{}
 
-	host = getEnvString("ADDRESS", host)
-	storeInterval = getEnvInt("STORE_INTERVAL", storeInterval)
-	restore = getEnvBool("RESTORE", restore)
-	fileStoragePath = getEnvString("FILE_STORAGE_PATH", fileStoragePath)
-	databaseDSN = getEnvString("DATABASE_DSN", databaseDSN)
-	key = getEnvString("KEY", key)
-	auditFile = getEnvString("AUDIT_FILE", auditFile)
-	auditURL = getEnvString("AUDIT_URL", auditURL)
-	bufSize = getEnvInt("BUFFER_SIZE", bufSize)
-	keyPath = getEnvString("CRYPTO_KEY", keyPath)
+	so.Host = *hostFlag
+	so.StoreInterval = *storeIntervalFlag
+	so.Restore = *restoreFlag
+	so.FileStoragePath = *fileStoragePathFlag
+	so.DatabaseDSN = *databaseDSNFlag
+	so.Key = *keyFlag
+	so.AuditFilePath = *auditFileFlag
+	so.AuditURL = *auditURLflag
+	so.BufferSize = *bufSizeflag
+	so.KeyPath = *keyPathFlag
+	so.FileConfig = *fileConfigFlag
 
-	return &ServerOptions{
-		Host:            host,
-		StoreInterval:   storeInterval,
-		Restore:         restore,
-		FileStoragePath: fileStoragePath,
-		DatabaseDSN:     databaseDSN,
-		Key:             key,
-		AuditFilePath:   auditFile,
-		AuditURL:        auditURL,
-		BufferSize:      bufSize,
-		KeyPath:         keyPath,
+	return so
+}
+
+func (so *ServerOptions) CompareAndAddValues(trg *ServerOptions) {
+	if so == nil || trg == nil {
+		return
+	}
+
+	if so.Host == "" {
+		so.Host = trg.Host
+	}
+	if so.FileStoragePath == "" {
+		so.FileStoragePath = trg.FileStoragePath
+	}
+	if so.DatabaseDSN == "" {
+		so.DatabaseDSN = trg.DatabaseDSN
+	}
+	if so.Key == "" {
+		so.Key = trg.Key
+	}
+	if so.AuditFilePath == "" {
+		so.AuditFilePath = trg.AuditFilePath
+	}
+	if so.AuditURL == "" {
+		so.AuditURL = trg.AuditURL
+	}
+	if so.KeyPath == "" {
+		so.KeyPath = trg.KeyPath
+	}
+
+	if so.StoreInterval == 0 {
+		so.StoreInterval = trg.StoreInterval
+	}
+	if so.BufferSize == 0 {
+		so.BufferSize = trg.BufferSize
 	}
 
 }
