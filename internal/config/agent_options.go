@@ -58,7 +58,7 @@ func getAgentOptionsFromEnv(def *AgentOptions) *AgentOptions {
 }
 
 func getAgentOptionsFromFile(path string) (*AgentOptions, error) {
-	config, err := ReadJsonConfig(path)
+	config, err := ReadJSONConfig(path)
 	if err != nil {
 		return nil, err
 	}

@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-func ReadJsonConfig(path string) (map[string]interface{}, error) {
+func ReadJSONConfig(path string) (map[string]interface{}, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err

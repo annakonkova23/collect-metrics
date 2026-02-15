@@ -100,7 +100,7 @@ func getServerOptionsFromEnv(def *ServerOptions) *ServerOptions {
 }
 
 func getServerOptionsFromFile(path string) (*ServerOptions, error) {
-	config, err := ReadJsonConfig(path)
+	config, err := ReadJSONConfig(path)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func getServerOptionsFromFlag() *ServerOptions {
 	auditURLflag := flag.String("audit-url", "", "URL для аудита")
 	bufSizeflag := flag.Int("b", 0, "Размер буфера каналов")
 	keyPathFlag := flag.String("crypto-key", "", "Путь до приватного ключа")
-	fileConfigFlag := flag.String("c", "server.json", "Путь до файла конфигурации")
+	fileConfigFlag := flag.String("c", "", "Путь до файла конфигурации")
 	fileConfigFlag = flag.String("config", *fileConfigFlag, "Путь до файла конфигурации")
 	flag.Parse()
 
