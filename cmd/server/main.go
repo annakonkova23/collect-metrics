@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"syscall"
 	"time"
 
@@ -32,6 +33,10 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(),
 		os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	quitCh := make(chan os.Signal, 1)
+	signal.Notify(quitCh, syscall.SIGQUIT)
+	defer signal.Stop(quitCh)
 
 	logger, err := zap.NewDevelopment()
 	if err != nil {
@@ -74,15 +79,25 @@ func main() {
 		}
 	}()
 
-	<-ctx.Done()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	select {
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 
-	h.Shutdown(shutdownCtx)
-	fmt.Println("Получен сигнал завершения. Сохраняю данные...")
-	logger.Info("Контекст завершён, сохраняю данные", zap.Error(ctx.Err()))
+		h.Shutdown(shutdownCtx)
+		fmt.Println("Получен сигнал завершения. Сохраняю данные...")
+		logger.Info("Контекст завершён, сохраняю данные", zap.Error(ctx.Err()))
 
-	collector.GetDataAndSaveToFile()
+		collector.GetDataAndSaveToFile()
+	case <-quitCh:
+		fmt.Fprintln(os.Stderr, "Получен сигнал SIGQUIT: goroutine dump (pprof)")
+		if p := pprof.Lookup("goroutine"); p != nil {
+			_ = p.WriteTo(os.Stderr, 2)
+		} else {
+			fmt.Fprintln(os.Stderr, "pprof.Lookup(\"goroutine\") вернул nil")
+		}
+	}
+
 }
 
 ///github.com/annakonkova23/collect-metrics
