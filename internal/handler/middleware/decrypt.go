@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/rsa"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -27,8 +26,6 @@ func WithDecrypt(key *rsa.PrivateKey) func(http.Handler) http.Handler {
 						http.Error(w, err.Error(), http.StatusBadRequest)
 						return
 					}
-					fmt.Println("DECRYPT")
-					fmt.Println(string(dcr))
 					newReq.Body = io.NopCloser(bytes.NewBuffer(dcr))
 				}
 
