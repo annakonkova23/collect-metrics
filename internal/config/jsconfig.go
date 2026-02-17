@@ -20,3 +20,28 @@ func ReadJSONConfig(path string) (map[string]interface{}, error) {
 	return config, nil
 
 }
+
+func AsString(v interface{}) (string, bool) {
+	s, ok := v.(string)
+	return s, ok
+}
+
+func AsInt(v interface{}) (int, bool) {
+	switch val := v.(type) {
+	case int:
+		return val, true
+	case float64:
+		return int(val), true
+	case int64:
+		return int(val), true
+	case int32:
+		return int(val), true
+	default:
+		return 0, false
+	}
+}
+
+func AsBool(v interface{}) (bool, bool) {
+	b, ok := v.(bool)
+	return b, ok
+}

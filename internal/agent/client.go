@@ -9,16 +9,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/annakonkova23/collect-metrics/internal/crypto"
+	"github.com/annakonkova23/collect-metrics/internal/model"
+	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/annakonkova23/collect-metrics/internal/model"
-	"github.com/go-resty/resty/v2"
-	"go.uber.org/zap"
 )
 
 // Константы для retry.
@@ -38,7 +38,7 @@ type Client struct {
 
 // NewClient создание клиента.
 func NewClient(keyPath string, sugar *zap.SugaredLogger) *Client {
-	key, err := ReadPublicKey(keyPath)
+	key, err := crypto.ReadPublicKey(keyPath)
 	if err != nil {
 		sugar.Errorln(err)
 	}
@@ -82,7 +82,7 @@ func (c *Client) PostWithBody(ctx context.Context, url string, body []byte, hash
 	delay := 1
 
 	if c.key != nil {
-		key, data, err := HybridEncrypt(c.key, body)
+		key, data, err := crypto.HybridEncrypt(c.key, body)
 		if err != nil {
 			return err
 		}

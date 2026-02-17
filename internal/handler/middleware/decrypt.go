@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/annakonkova23/collect-metrics/internal/crypto"
 	"github.com/annakonkova23/collect-metrics/internal/model"
 )
 
@@ -21,7 +22,7 @@ func WithDecrypt(key *rsa.PrivateKey) func(http.Handler) http.Handler {
 						http.Error(w, err.Error(), http.StatusBadRequest)
 						return
 					}
-					dcr, err := HybridDecrypt(key, req.EncryptedKey, req.EncryptedData)
+					dcr, err := crypto.HybridDecrypt(key, req.EncryptedKey, req.EncryptedData)
 					if err != nil {
 						http.Error(w, err.Error(), http.StatusBadRequest)
 						return

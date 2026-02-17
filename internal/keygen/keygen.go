@@ -10,12 +10,12 @@ import (
 	"path/filepath"
 )
 
-func Generate(path string) {
+func Generate(path string) error {
 
 	if path == "" {
 		dir, err := os.Getwd()
 		if err != nil {
-			panic(err)
+			return err
 		}
 		path = dir
 	}
@@ -25,12 +25,12 @@ func Generate(path string) {
 
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	privateFile, err := os.Create("private.pem")
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer privateFile.Close()
 
@@ -39,18 +39,18 @@ func Generate(path string) {
 		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
 	}
 	if err := pem.Encode(privateFile, privatePEM); err != nil {
-		panic(err)
+		return err
 	}
 
 	publicFile, err := os.Create("public.pem")
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer publicFile.Close()
 
 	publicBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	publicPEM := &pem.Block{
@@ -58,8 +58,9 @@ func Generate(path string) {
 		Bytes: publicBytes,
 	}
 	if err := pem.Encode(publicFile, publicPEM); err != nil {
-		panic(err)
+		return err
 	}
 
 	fmt.Printf("Ключи созданы: %s, %s \n", publicPath, privatePath)
+	return nil
 }
