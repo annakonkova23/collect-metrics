@@ -1,3 +1,4 @@
+// Пакет crypto предоставляет функции для шифрования и дешифрования данных.
 package crypto
 
 import (
@@ -13,6 +14,7 @@ import (
 	"os"
 )
 
+// ReadPublicKey читает публичный ключ из файла.
 func ReadPublicKey(filename string) (*rsa.PublicKey, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -37,6 +39,7 @@ func ReadPublicKey(filename string) (*rsa.PublicKey, error) {
 	return pub, nil
 }
 
+// HybridEncrypt шифрует данные с использованием гибридного шифрования.
 func HybridEncrypt(pub *rsa.PublicKey, plaintext []byte) (encryptedKey, ciphertext []byte, err error) {
 	// Генерируем AES-ключ (256 бит)
 	aesKey := make([]byte, 32)
@@ -77,6 +80,7 @@ func HybridEncrypt(pub *rsa.PublicKey, plaintext []byte) (encryptedKey, cipherte
 	return encryptedKey, ciphertext, nil
 }
 
+// ReadPrivateKey читает приватный ключ из файла.
 func ReadPrivateKey(filename string) (*rsa.PrivateKey, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -103,6 +107,7 @@ func ReadPrivateKey(filename string) (*rsa.PrivateKey, error) {
 	return priv, nil
 }
 
+// HybridDecrypt дешифрует данные, зашифрованные с помощью гибридного шифрования.
 func HybridDecrypt(priv *rsa.PrivateKey, encryptedKey, ciphertext []byte) ([]byte, error) {
 	aesKey, err := rsa.DecryptOAEP(
 		sha256.New(),
