@@ -36,6 +36,8 @@ package handler
 import (
 	"context"
 	"crypto/rsa"
+	"fmt"
+	"net"
 	"net/http"
 
 	"github.com/annakonkova23/collect-metrics/internal/audit"
@@ -54,15 +56,16 @@ import (
 //   - Запуск и корректное завершение работы сервера
 //   - Интеграцию с аудитом и валидацией запросов
 type Server struct {
-	router    *chi.Mux            // HTTP-роутер на основе chi
-	url       string              // Адрес, на котором работает сервер (например, ":8080")
-	Collector *service.Collector  // Служба сбора и хранения метрик
-	Sugar     *zap.SugaredLogger  // Удобный интерфейс логирования
-	logger    *zap.Logger         // Структурированный логгер
-	key       string              // Ключ для проверки HMAC-SHA256 в заголовке HashSHA256
-	auditor   *audit.AuditManager // Менеджер аудита (файл + HTTP)
-	srv       *http.Server        // Стандартный HTTP-сервер Go
-	keyCrypt  *rsa.PrivateKey     // Ключ для шифрования
+	router        *chi.Mux            // HTTP-роутер на основе chi
+	url           string              // Адрес, на котором работает сервер (например, ":8080")
+	Collector     *service.Collector  // Служба сбора и хранения метрик
+	Sugar         *zap.SugaredLogger  // Удобный интерфейс логирования
+	logger        *zap.Logger         // Структурированный логгер
+	key           string              // Ключ для проверки HMAC-SHA256 в заголовке HashSHA256
+	auditor       *audit.AuditManager // Менеджер аудита (файл + HTTP)
+	srv           *http.Server        // Стандартный HTTP-сервер Go
+	keyCrypt      *rsa.PrivateKey     // Ключ для шифрования
+	TrustedSubnet string              // Доверенная подсеть
 }
 
 // NewServer создаёт новый экземпляр HTTP-сервера.
@@ -101,15 +104,16 @@ func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logge
 	}
 
 	return &Server{
-		router:    r,
-		url:       cfg.Host,
-		Collector: collector,
-		Sugar:     logger.Sugar(),
-		logger:    logger,
-		key:       cfg.Key,
-		srv:       server,
-		auditor:   auditor,
-		keyCrypt:  key,
+		router:        r,
+		url:           cfg.Host,
+		Collector:     collector,
+		Sugar:         logger.Sugar(),
+		logger:        logger,
+		key:           cfg.Key,
+		srv:           server,
+		auditor:       auditor,
+		keyCrypt:      key,
+		TrustedSubnet: cfg.TrustedSubnet,
 	}, nil
 }
 
@@ -162,4 +166,20 @@ func (s *Server) Shutdown(ctx context.Context) {
 		errClose := s.srv.Close()
 		s.logger.Error("Ошибка при закрытии сервера", zap.Error(err), zap.Error(errClose))
 	}
+}
+
+// IsIPInCIDR проверяет, входит ли IP в CIDR-подсеть.
+func (s *Server) IsIPInCIDR(ipStr string) (bool, error) {
+
+	_, cidr, err := net.ParseCIDR(s.TrustedSubnet)
+	if err != nil {
+		return false, fmt.Errorf("невалидный CIDR '%s': %w", s.TrustedSubnet, err)
+	}
+
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false, fmt.Errorf("невалидный IP '%s'", ipStr)
+	}
+
+	return cidr.Contains(ip), nil
 }
