@@ -58,7 +58,7 @@ func main() {
 
 	logger.Info("Опции", zap.String("options", fmt.Sprintf("%+v", options)))
 	logger.Info("Сервер создан",
-		zap.String("host", "localhost:8080"),
+		zap.String("host", options.Host),
 	)
 
 	go func() {
