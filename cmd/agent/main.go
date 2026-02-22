@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"syscall"
 
 	"net/http"
@@ -29,6 +31,10 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(),
 		os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	quitCh := make(chan os.Signal, 1)
+	signal.Notify(quitCh, syscall.SIGQUIT)
+	defer signal.Stop(quitCh)
 
 	URL := ""
 	logger, err := zap.NewDevelopment()
@@ -61,8 +67,18 @@ func main() {
 		}
 	}()
 
-	<-ctx.Done()
-	logger.Info("Получен сигнал. Отмена...")
+	select {
+	case <-quitCh:
+		fmt.Fprintln(os.Stderr, "Получен сигнал SIGQUIT: goroutine dump (pprof)")
+
+		if p := pprof.Lookup("goroutine"); p != nil {
+			_ = p.WriteTo(os.Stderr, 2)
+		} else {
+			fmt.Fprintln(os.Stderr, "pprof.Lookup(\"goroutine\") вернул nil")
+		}
+	case <-ctx.Done():
+		logger.Info("Получен сигнал. Отмена...")
+	}
 
 }
 

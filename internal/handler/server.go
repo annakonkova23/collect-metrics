@@ -40,6 +40,7 @@ import (
 
 	"github.com/annakonkova23/collect-metrics/internal/audit"
 	"github.com/annakonkova23/collect-metrics/internal/config"
+	"github.com/annakonkova23/collect-metrics/internal/crypto"
 	mw "github.com/annakonkova23/collect-metrics/internal/handler/middleware"
 	"github.com/annakonkova23/collect-metrics/internal/service"
 	"github.com/go-chi/chi/v5"
@@ -94,7 +95,7 @@ func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logge
 		return nil, err
 	}
 
-	key, err := mw.ReadPrivateKey(cfg.KeyPath)
+	key, err := crypto.ReadPrivateKey(cfg.KeyPath)
 	if err != nil {
 		logger.Error("Ошибка чтения приватного ключа", zap.Error(err))
 	}

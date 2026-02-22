@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 )
@@ -16,8 +15,6 @@ func equalHash(r *http.Request, key string) error {
 		return nil
 	}
 	receivedHash := r.Header.Get("HashSHA256")
-	fmt.Println("HEADER")
-	fmt.Println(receivedHash)
 	if receivedHash == "" {
 		return nil
 	}
@@ -26,14 +23,11 @@ func equalHash(r *http.Request, key string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(body))
 	r.Body = io.NopCloser(bytes.NewReader(body))
 	h := hmac.New(sha256.New, []byte(key))
 	h.Write(body)
 	expectedHash := h.Sum(nil)
 	expectedHashHex := hex.EncodeToString(expectedHash)
-	fmt.Println(expectedHashHex)
-	fmt.Println(key)
 	if !hmac.Equal([]byte(expectedHashHex), []byte(receivedHash)) {
 		return errors.New("хеши не совпадают")
 	}

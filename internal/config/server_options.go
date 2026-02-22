@@ -110,26 +110,67 @@ func getServerOptionsFromFile(path string) (*ServerOptions, error) {
 	for key, value := range config {
 		switch key {
 		case "address":
-			so.Host = value.(string)
+			if s, ok := AsString(value); ok {
+				so.Host = s
+			} else {
+				log.Printf("некорректный тип для 'address': %T", value)
+			}
 		case "store_interval":
-			so.StoreInterval = int(value.(float64))
+			if n, ok := AsInt(value); ok {
+				so.StoreInterval = n
+			} else {
+				log.Printf("некорректный тип для 'store_interval': %T", value)
+			}
 		case "restore":
-			so.Restore = value.(bool)
+			if b, ok := AsBool(value); ok {
+				so.Restore = b
+			} else {
+				log.Printf("некорректный тип для 'restore': %T", value)
+			}
 		case "file_storage_path":
-			so.FileStoragePath = value.(string)
+			if s, ok := AsString(value); ok {
+				so.FileStoragePath = s
+			} else {
+				log.Printf("некорректный тип для 'file_storage_path': %T", value)
+			}
 		case "database_dsn":
-			so.DatabaseDSN = value.(string)
+			if s, ok := AsString(value); ok {
+				so.DatabaseDSN = s
+			} else {
+				log.Printf("некорректный тип для 'database_dsn': %T", value)
+			}
 		case "key":
-			so.Key = value.(string)
+			if s, ok := AsString(value); ok {
+				so.Key = s
+			} else {
+				log.Printf("некорректный тип для 'key': %T", value)
+			}
 		case "audit_file":
-			so.AuditFilePath = value.(string)
+			if s, ok := AsString(value); ok {
+				so.AuditFilePath = s
+			} else {
+				log.Printf("некорректный тип для 'audit_file': %T", value)
+			}
 		case "audit_url":
-			so.AuditURL = value.(string)
+			if s, ok := AsString(value); ok {
+				so.AuditURL = s
+			} else {
+				log.Printf("некорректный тип для 'audit_url': %T", value)
+			}
 		case "buffer_size":
-			so.BufferSize = int(value.(float64))
+			if n, ok := AsInt(value); ok {
+				so.BufferSize = n
+			} else {
+				log.Printf("некорректный тип для 'buffer_size': %T", value)
+			}
 		case "crypto_key":
-			so.KeyPath = value.(string)
-
+			if s, ok := AsString(value); ok {
+				so.KeyPath = s
+			} else {
+				log.Printf("некорректный тип для 'crypto_key': %T", value)
+			}
+		default:
+			log.Printf("неизвестный ключ конфига: %s", key)
 		}
 	}
 

@@ -68,16 +68,37 @@ func getAgentOptionsFromFile(path string) (*AgentOptions, error) {
 	for key, value := range config {
 		switch key {
 		case "address":
-			ao.Host = value.(string)
+			if s, ok := AsString(value); ok {
+				ao.Host = s
+			} else {
+				log.Printf("некорректный тип для 'address': %T", value)
+			}
 		case "poll_interval":
-			ao.PollInterval = int(value.(float64))
+			if n, ok := AsInt(value); ok {
+				ao.PollInterval = n
+			} else {
+				log.Printf("некорректный тип для 'poll_interval': %T", value)
+			}
 		case "report_interval":
-			ao.ReportInterval = int(value.(float64))
+			if n, ok := AsInt(value); ok {
+				ao.ReportInterval = n
+			} else {
+				log.Printf("некорректный тип для 'report_interval': %T", value)
+			}
 		case "rate_limit":
-			ao.RateLimiter = int(value.(float64))
+			if n, ok := AsInt(value); ok {
+				ao.RateLimiter = n
+			} else {
+				log.Printf("некорректный тип для 'rate_limit': %T", value)
+			}
 		case "crypto_key":
-			ao.KeyPath = value.(string)
-
+			if s, ok := AsString(value); ok {
+				ao.KeyPath = s
+			} else {
+				log.Printf("некорректный тип для 'crypto_key': %T", value)
+			}
+		default:
+			log.Printf("неизвестный ключ конфига: %s", key)
 		}
 	}
 
@@ -92,7 +113,7 @@ func getAgentOptionsFromFlag() *AgentOptions {
 	keyFlag := flag.String("k", "", "Ключ для хеша")
 	rateLimiterFlag := flag.Int("l", 0, "Rate limiter")
 	keyPathFlag := flag.String("crypto-key", "", "Путь до публичного ключа")
-	fileConfigFlag := flag.String("c", "server.json", "Путь до файла конфигурации")
+	fileConfigFlag := flag.String("c", "agent.json", "Путь до файла конфигурации")
 	fileConfigFlag = flag.String("config", *fileConfigFlag, "Путь до файла конфигурации")
 	flag.Parse()
 
