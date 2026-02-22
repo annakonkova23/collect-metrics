@@ -35,6 +35,7 @@ package handler
 
 import (
 	"context"
+	"crypto/rsa"
 	"net/http"
 
 	"github.com/annakonkova23/collect-metrics/internal/audit"
@@ -60,6 +61,7 @@ type Server struct {
 	key       string              // Ключ для проверки HMAC-SHA256 в заголовке HashSHA256
 	auditor   *audit.AuditManager // Менеджер аудита (файл + HTTP)
 	srv       *http.Server        // Стандартный HTTP-сервер Go
+	keyCrypt  *rsa.PrivateKey     // Ключ для шифрования
 }
 
 // NewServer создаёт новый экземпляр HTTP-сервера.
@@ -92,6 +94,11 @@ func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logge
 		return nil, err
 	}
 
+	key, err := mw.ReadPrivateKey(cfg.KeyPath)
+	if err != nil {
+		logger.Error("Ошибка чтения приватного ключа", zap.Error(err))
+	}
+
 	return &Server{
 		router:    r,
 		url:       cfg.Host,
@@ -101,6 +108,7 @@ func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logge
 		key:       cfg.Key,
 		srv:       server,
 		auditor:   auditor,
+		keyCrypt:  key,
 	}, nil
 }
 
@@ -123,7 +131,7 @@ func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logge
 // Для graceful shutdown используйте Shutdown(ctx).
 func (s *Server) StartAndListen(ctx context.Context) error {
 	s.auditor.Start(ctx)
-	s.router.Use(mw.WithLogging(s.logger), mw.WithCompress, mw.WithCheckHash(s.key))
+	s.router.Use(mw.WithLogging(s.logger), mw.WithCompress, mw.WithDecrypt(s.keyCrypt), mw.WithCheckHash(s.key))
 	s.router.Post("/update/{type}/{name}/{value}", s.updateHandler)
 	s.router.Post("/update/", s.updateJSONHandler)
 	s.router.Get("/value/{type}/{name}", s.valueHandler)
