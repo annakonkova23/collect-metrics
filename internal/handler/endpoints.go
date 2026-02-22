@@ -24,6 +24,12 @@ func (s *Server) updateHandler(w http.ResponseWriter, r *http.Request) {
 	paramType := chi.URLParam(r, "type")
 	paramValue := chi.URLParam(r, "value")
 	s.logger.Debug(fmt.Sprintf("updateHandler param:%s %s %s", paramName, paramType, paramValue))
+	ip, ok := s.getAndValidateIP(r)
+	if !ok {
+		s.logger.Debug("IP-адрес не входит в доверенную подсеть", zap.String("IP", ip))
+		http.Error(w, "IP-адрес не входит в доверенную подсеть", http.StatusForbidden)
+		return
+	}
 	err := s.Collector.SaveMetricsByParam(r.Context(), paramName, paramType, paramValue)
 	if err != nil {
 		if errors.Is(err, service.ErrorNotFound) {
@@ -52,6 +58,12 @@ func (s *Server) updateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	s.logger.Debug("updateJsonHandler BODY:" + string(bodyBytes))
+	ip, ok := s.getAndValidateIP(r)
+	if !ok {
+		s.logger.Debug("IP-адрес не входит в доверенную подсеть", zap.String("IP", ip))
+		http.Error(w, "IP-адрес не входит в доверенную подсеть", http.StatusForbidden)
+		return
+	}
 	metric := &model.Metrics{}
 	metric.UnmarshalJSON(bodyBytes)
 	metrics, err := s.Collector.SaveMetrics(r.Context(), []*model.Metrics{metric})
@@ -72,6 +84,12 @@ func (s *Server) valueHandler(w http.ResponseWriter, r *http.Request) {
 	paramName := chi.URLParam(r, "name")
 	paramType := chi.URLParam(r, "type")
 	s.logger.Debug(fmt.Sprintf("param:%s %s", paramName, paramType))
+	ip, ok := s.getAndValidateIP(r)
+	if !ok {
+		s.logger.Debug("IP-адрес не входит в доверенную подсеть", zap.String("IP", ip))
+		http.Error(w, "IP-адрес не входит в доверенную подсеть", http.StatusForbidden)
+		return
+	}
 	value, ok := s.Collector.GetMetricValueByParam(paramName, paramType)
 	if !ok {
 		http.Error(w, "Метрика не найдена", http.StatusNotFound)
@@ -87,6 +105,12 @@ func (s *Server) allValuesHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		msg := fmt.Sprintf("Метод %s не поддерживается", r.Method)
 		http.Error(w, msg, http.StatusBadRequest)
+	}
+	ip, ok := s.getAndValidateIP(r)
+	if !ok {
+		s.logger.Debug("IP-адрес не входит в доверенную подсеть", zap.String("IP", ip))
+		http.Error(w, "IP-адрес не входит в доверенную подсеть", http.StatusForbidden)
+		return
 	}
 	values := s.Collector.GetMetricAllValues()
 	if len(values) == 0 {
@@ -140,6 +164,12 @@ func (s *Server) valueJSONHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Неверный Content-Type", http.StatusBadRequest)
 		return
 	}
+	ip, ok := s.getAndValidateIP(r)
+	if !ok {
+		s.logger.Debug("IP-адрес не входит в доверенную подсеть", zap.String("IP", ip))
+		http.Error(w, "IP-адрес не входит в доверенную подсеть", http.StatusForbidden)
+		return
+	}
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		s.logger.Error(err.Error())
@@ -182,6 +212,12 @@ func (s *Server) updateSeveralJSONHandler(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Неверный Content-Type", http.StatusBadRequest)
 		return
 	}
+	ip, ok := s.getAndValidateIP(r)
+	if !ok {
+		s.logger.Debug("IP-адрес не входит в доверенную подсеть", zap.String("IP", ip))
+		http.Error(w, "IP-адрес не входит в доверенную подсеть", http.StatusForbidden)
+		return
+	}
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		s.logger.Error(err.Error())
@@ -212,4 +248,18 @@ func (s *Server) updateSeveralJSONHandler(w http.ResponseWriter, r *http.Request
 func (s *Server) getIP(r *http.Request) string {
 	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 	return ip
+}
+
+func (s *Server) getAndValidateIP(r *http.Request) (string, bool) {
+	ip := r.Header.Get("X-Real-IP")
+	if ip == "" {
+		return "", true
+	} else {
+		val, err := s.IsIPInCIDR(ip)
+		if err != nil {
+			s.logger.Error("Ошибка проверки IP", zap.Error(err))
+			return "", false
+		}
+		return ip, val
+	}
 }

@@ -31,6 +31,7 @@ type ServerOptions struct {
 	BufferSize      int
 	KeyPath         string
 	FileConfig      string
+	TrustedSubnet   string
 }
 
 func getEnvString(envKey, defaultValue string) string {
@@ -95,6 +96,7 @@ func getServerOptionsFromEnv(def *ServerOptions) *ServerOptions {
 	serverOptions.BufferSize = getEnvInt("BUFFER_SIZE", def.BufferSize)
 	serverOptions.KeyPath = getEnvString("CRYPTO_KEY", def.KeyPath)
 	serverOptions.FileConfig = getEnvString("CONFIG", def.FileConfig)
+	serverOptions.TrustedSubnet = getEnvString("TRUSTED_SUBNET", def.TrustedSubnet)
 
 	return serverOptions
 }
@@ -169,6 +171,12 @@ func getServerOptionsFromFile(path string) (*ServerOptions, error) {
 			} else {
 				log.Printf("некорректный тип для 'crypto_key': %T", value)
 			}
+		case "trusted_subnet":
+			if s, ok := AsString(value); ok {
+				so.TrustedSubnet = s
+			} else {
+				log.Printf("некорректный тип для 'trusted_subnet': %T", value)
+			}
 		default:
 			log.Printf("неизвестный ключ конфига: %s", key)
 		}
@@ -190,6 +198,7 @@ func getServerOptionsFromFlag() *ServerOptions {
 	keyPathFlag := flag.String("crypto-key", "", "Путь до приватного ключа")
 	fileConfigFlag := flag.String("c", "", "Путь до файла конфигурации")
 	fileConfigFlag = flag.String("config", *fileConfigFlag, "Путь до файла конфигурации")
+	trustedSubnetFlag := flag.String("t", "", "Cтроковое представление бесклассовой адресации (CIDR)")
 	flag.Parse()
 
 	so := &ServerOptions{}
@@ -205,6 +214,7 @@ func getServerOptionsFromFlag() *ServerOptions {
 	so.BufferSize = *bufSizeflag
 	so.KeyPath = *keyPathFlag
 	so.FileConfig = *fileConfigFlag
+	so.TrustedSubnet = *trustedSubnetFlag
 
 	return so
 }
@@ -234,6 +244,10 @@ func (so *ServerOptions) CompareAndAddValues(trg *ServerOptions) {
 	}
 	if so.KeyPath == "" {
 		so.KeyPath = trg.KeyPath
+	}
+
+	if so.TrustedSubnet == "" {
+		so.TrustedSubnet = trg.TrustedSubnet
 	}
 
 	if so.StoreInterval == 0 {

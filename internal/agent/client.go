@@ -9,16 +9,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/annakonkova23/collect-metrics/internal/crypto"
-	"github.com/annakonkova23/collect-metrics/internal/model"
-	"github.com/go-resty/resty/v2"
-	"go.uber.org/zap"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/annakonkova23/collect-metrics/internal/crypto"
+	"github.com/annakonkova23/collect-metrics/internal/model"
+	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
 )
 
 // Константы для retry.
@@ -124,6 +125,10 @@ func (c *Client) PostWithBody(ctx context.Context, url string, body []byte, hash
 	c.client.OnAfterResponse(c.WithLoggingResponse)
 	var err error
 	var response *resty.Response
+	ip, err := getLocalIP()
+	if err != nil {
+		c.Sugar.Error(err)
+	}
 	for i := 0; i < countAttempt; i++ {
 		response, err = c.client.R().
 			SetHeader("Content-Encoding", "gzip").
@@ -131,6 +136,7 @@ func (c *Client) PostWithBody(ctx context.Context, url string, body []byte, hash
 			SetHeader("Content-Length", strconv.Itoa(buf.Len())).
 			SetHeader("Accept-Encoding", "gzip").
 			SetHeader("HashSHA256", hash).
+			SetHeader("X-Real-IP", ip).
 			SetBody(compressed).
 			Post(url)
 
@@ -195,4 +201,15 @@ func (c *Client) isConnectionRefused(err error) bool {
 		}
 	}
 	return false
+}
+
+func getLocalIP() (string, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String(), nil
 }
