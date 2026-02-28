@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	mode_http = "http"
-	mode_grpc = "grpc"
+	modeHTTP = "http"
+	modeGRPC = "grpc"
 )
 
 // Sender - структура для отправки метрик.
@@ -40,9 +40,9 @@ type Sender struct {
 // - key: Ключ для подписи метрик
 // - logger: Логгер
 func NewSender(httpURL string, pollInterval, reportInterval int, key string, keyPath string, logger *zap.Logger, useGrpc bool, grpcURL string) *Sender {
-	mode := mode_http
+	mode := modeHTTP
 	if useGrpc {
-		mode = mode_grpc
+		mode = modeGRPC
 	}
 
 	logger.Info("Установлен режим отправки метрик", zap.String("mode", mode))
@@ -70,7 +70,7 @@ func (s *Sender) SendRequest(ctx context.Context, chMetrics <-chan []*model.Metr
 		case <-ticker.C:
 			for metrics := range chMetrics {
 				switch s.modeSend {
-				case mode_http:
+				case modeHTTP:
 					{
 						body, err := json.Marshal(metrics)
 						if err != nil {
@@ -83,7 +83,7 @@ func (s *Sender) SendRequest(ctx context.Context, chMetrics <-chan []*model.Metr
 							s.logger.Info("Успешный ответ")
 						}
 					}
-				case mode_grpc:
+				case modeGRPC:
 					{
 						s.logger.Info("GRPC запрос на отправку метрик")
 						if err := s.client.SendRequest(ctx, s.grpcURL, convertMetricsToProtoMetrics(metrics)); err != nil {

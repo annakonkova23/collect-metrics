@@ -142,10 +142,10 @@ func IsIPInCIDR(cidr string) func(ctx context.Context, req interface{}, info *gr
 			if len(values) > 0 {
 				ip = values[0]
 				if is, err := handlerServer.IsIPInCIDR(ip, cidr); err != nil {
-					return nil, status.Errorf(codes.PermissionDenied, err.Error())
+					return nil, status.Error(codes.PermissionDenied, err.Error())
 				} else {
 					if !is {
-						return nil, status.Errorf(codes.PermissionDenied, err.Error())
+						return nil, status.Errorf(codes.PermissionDenied, "IP %s не принадлежит доверенной сети %s", ip, cidr)
 					}
 				}
 			}
