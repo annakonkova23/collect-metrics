@@ -32,6 +32,7 @@ type ServerOptions struct {
 	KeyPath         string
 	FileConfig      string
 	TrustedSubnet   string
+	GrpcHost        string
 }
 
 func getEnvString(envKey, defaultValue string) string {
@@ -97,7 +98,7 @@ func getServerOptionsFromEnv(def *ServerOptions) *ServerOptions {
 	serverOptions.KeyPath = getEnvString("CRYPTO_KEY", def.KeyPath)
 	serverOptions.FileConfig = getEnvString("CONFIG", def.FileConfig)
 	serverOptions.TrustedSubnet = getEnvString("TRUSTED_SUBNET", def.TrustedSubnet)
-
+	serverOptions.GrpcHost = getEnvString("GRPC_HOST", def.GrpcHost)
 	return serverOptions
 }
 
@@ -177,6 +178,12 @@ func getServerOptionsFromFile(path string) (*ServerOptions, error) {
 			} else {
 				log.Printf("некорректный тип для 'trusted_subnet': %T", value)
 			}
+		case "grpc_host":
+			if s, ok := AsString(value); ok {
+				so.GrpcHost = s
+			} else {
+				log.Printf("некорректный тип для 'grpc_host': %T", value)
+			}
 		default:
 			log.Printf("неизвестный ключ конфига: %s", key)
 		}
@@ -199,6 +206,7 @@ func getServerOptionsFromFlag() *ServerOptions {
 	fileConfigFlag := flag.String("c", "", "Путь до файла конфигурации")
 	fileConfigFlag = flag.String("config", *fileConfigFlag, "Путь до файла конфигурации")
 	trustedSubnetFlag := flag.String("t", "", "Cтроковое представление бесклассовой адресации (CIDR)")
+	grpcHostFlag := flag.String("grpc-host", "", "Адрес gRPC сервера")
 	flag.Parse()
 
 	so := &ServerOptions{}
@@ -215,6 +223,7 @@ func getServerOptionsFromFlag() *ServerOptions {
 	so.KeyPath = *keyPathFlag
 	so.FileConfig = *fileConfigFlag
 	so.TrustedSubnet = *trustedSubnetFlag
+	so.GrpcHost = *grpcHostFlag
 
 	return so
 }
@@ -248,6 +257,10 @@ func (so *ServerOptions) CompareAndAddValues(trg *ServerOptions) {
 
 	if so.TrustedSubnet == "" {
 		so.TrustedSubnet = trg.TrustedSubnet
+	}
+
+	if so.GrpcHost == "" {
+		so.GrpcHost = trg.GrpcHost
 	}
 
 	if so.StoreInterval == 0 {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"runtime/pprof"
@@ -15,9 +16,14 @@ import (
 
 	"github.com/annakonkova23/collect-metrics/internal/config"
 	"github.com/annakonkova23/collect-metrics/internal/config/db"
-	"github.com/annakonkova23/collect-metrics/internal/handler"
+	handlerServer "github.com/annakonkova23/collect-metrics/internal/handler"
 	"github.com/annakonkova23/collect-metrics/internal/service"
+	mcs "github.com/annakonkova23/collect-metrics/pkg/metrics"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 var buildVersion string
@@ -56,7 +62,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	h, err := handler.NewServer(ctx, options, logger, collector)
+	h, err := handlerServer.NewServer(ctx, options, logger, collector)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -71,6 +77,14 @@ func main() {
 			logger.Error("Сервер завершился с ошибкой", zap.Error(err))
 		}
 	}()
+
+	if options.GrpcHost != "" {
+		go func() {
+			if err := StartGrpcServer(logger, options.GrpcHost, options.TrustedSubnet, h); err != nil {
+				logger.Error("Ошибка запуска gRPC сервера", zap.Error(err))
+			}
+		}()
+	}
 
 	go func() {
 		log.Println("pprof: http://localhost:6061/debug/pprof/")
@@ -100,4 +114,42 @@ func main() {
 
 }
 
-///github.com/annakonkova23/collect-metrics
+func StartGrpcServer(lgr *zap.Logger, host, cidr string, srv *handlerServer.Server) error {
+	listen, err := net.Listen("tcp", host)
+	if err != nil {
+		return err
+	}
+
+	s := grpc.NewServer(grpc.UnaryInterceptor(IsIPInCIDR(cidr)))
+
+	mcs.RegisterMetricsServer(s, srv)
+
+	lgr.Info("сервер gRPC начал работу", zap.String("host", host))
+
+	if err := s.Serve(listen); err != nil {
+		return err
+	}
+	return nil
+}
+
+func IsIPInCIDR(cidr string) func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		var ip string
+
+		md, ok := metadata.FromIncomingContext(ctx)
+		if ok {
+			values := md.Get("x-real-ip")
+			if len(values) > 0 {
+				ip = values[0]
+				if is, err := handlerServer.IsIPInCIDR(ip, cidr); err != nil {
+					return nil, status.Errorf(codes.PermissionDenied, err.Error())
+				} else {
+					if !is {
+						return nil, status.Errorf(codes.PermissionDenied, err.Error())
+					}
+				}
+			}
+		}
+		return handler(ctx, req)
+	}
+}

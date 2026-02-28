@@ -45,6 +45,7 @@ import (
 	"github.com/annakonkova23/collect-metrics/internal/crypto"
 	mw "github.com/annakonkova23/collect-metrics/internal/handler/middleware"
 	"github.com/annakonkova23/collect-metrics/internal/service"
+	mcs "github.com/annakonkova23/collect-metrics/pkg/metrics"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
@@ -66,6 +67,7 @@ type Server struct {
 	srv           *http.Server        // Стандартный HTTP-сервер Go
 	keyCrypt      *rsa.PrivateKey     // Ключ для шифрования
 	TrustedSubnet string              // Доверенная подсеть
+	mcs.UnimplementedMetricsServer
 }
 
 // NewServer создаёт новый экземпляр HTTP-сервера.
@@ -169,11 +171,13 @@ func (s *Server) Shutdown(ctx context.Context) {
 }
 
 // IsIPInCIDR проверяет, входит ли IP в CIDR-подсеть.
-func (s *Server) IsIPInCIDR(ipStr string) (bool, error) {
-
-	_, cidr, err := net.ParseCIDR(s.TrustedSubnet)
+func IsIPInCIDR(ipStr string, cidrStr string) (bool, error) {
+	if cidrStr == "" {
+		return true, nil
+	}
+	_, cidr, err := net.ParseCIDR(cidrStr)
 	if err != nil {
-		return false, fmt.Errorf("невалидный CIDR '%s': %w", s.TrustedSubnet, err)
+		return false, fmt.Errorf("невалидный CIDR '%s': %w", cidrStr, err)
 	}
 
 	ip := net.ParseIP(ipStr)

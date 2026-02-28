@@ -53,9 +53,11 @@ func main() {
 	logger.Info("Параметры", zap.String("URL", URL),
 		zap.Int("PollInterval", cfg.PollInterval),
 		zap.Int("ReportInterval", cfg.ReportInterval),
-		zap.Int("RateLimit", cfg.RateLimiter))
+		zap.Int("RateLimit", cfg.RateLimiter),
+		zap.Bool("UseGrpc", cfg.UseGrpc),
+		zap.String("HostGrpc", cfg.HostGrpc))
 
-	sender := service.NewSender(URL, cfg.PollInterval, cfg.ReportInterval, cfg.Key, cfg.KeyPath, logger)
+	sender := service.NewSender(URL, cfg.PollInterval, cfg.ReportInterval, cfg.Key, cfg.KeyPath, logger, cfg.UseGrpc, cfg.HostGrpc)
 	logger.Info("Отправитель создан")
 
 	sender.Start(ctx, cfg.RateLimiter)

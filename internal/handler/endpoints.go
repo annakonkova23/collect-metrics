@@ -255,7 +255,7 @@ func (s *Server) getAndValidateIP(r *http.Request) (string, bool) {
 	if ip == "" {
 		return "", true
 	} else {
-		val, err := s.IsIPInCIDR(ip)
+		val, err := IsIPInCIDR(ip, s.TrustedSubnet)
 		if err != nil {
 			s.logger.Error("Ошибка проверки IP", zap.Error(err))
 			return "", false
