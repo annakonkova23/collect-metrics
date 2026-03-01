@@ -14,6 +14,7 @@ import (
 	"github.com/annakonkova23/collect-metrics/internal/model"
 	"github.com/annakonkova23/collect-metrics/internal/repository"
 	fh "github.com/annakonkova23/collect-metrics/internal/service/fileHandler"
+	mcs "github.com/annakonkova23/collect-metrics/pkg/metrics"
 	"go.uber.org/zap"
 )
 
@@ -241,6 +242,40 @@ func (c *Collector) SaveMetrics(ctx context.Context, metrics []*model.Metrics) (
 	}
 	return metrics, nil
 
+}
+
+func (c *Collector) SaveMetricsByProto(ctx context.Context, metricsProto []*mcs.Metric) error {
+	metrics := convertProtoMetricsToMetrics(metricsProto)
+	_, err := c.SaveMetrics(ctx, metrics)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func convertProtoMetricsToMetrics(protoMetrics []*mcs.Metric) []*model.Metrics {
+	var metrics []*model.Metrics
+
+	for _, pMetric := range protoMetrics {
+		metric := &model.Metrics{
+			ID: pMetric.GetId(),
+		}
+
+		switch pMetric.GetType() {
+		case mcs.Metric_GAUGE:
+			metric.MType = model.Gauge
+			value := pMetric.GetValue()
+			metric.Value = &value
+		case mcs.Metric_COUNTER:
+			metric.MType = model.Counter
+			delta := pMetric.GetDelta()
+			metric.Delta = &delta
+		}
+
+		metrics = append(metrics, metric)
+	}
+
+	return metrics
 }
 
 // PingDB - проверка подключения к БД.

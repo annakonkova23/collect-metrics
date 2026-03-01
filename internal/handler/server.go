@@ -36,6 +36,8 @@ package handler
 import (
 	"context"
 	"crypto/rsa"
+	"fmt"
+	"net"
 	"net/http"
 
 	"github.com/annakonkova23/collect-metrics/internal/audit"
@@ -43,6 +45,7 @@ import (
 	"github.com/annakonkova23/collect-metrics/internal/crypto"
 	mw "github.com/annakonkova23/collect-metrics/internal/handler/middleware"
 	"github.com/annakonkova23/collect-metrics/internal/service"
+	mcs "github.com/annakonkova23/collect-metrics/pkg/metrics"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
@@ -54,15 +57,17 @@ import (
 //   - Запуск и корректное завершение работы сервера
 //   - Интеграцию с аудитом и валидацией запросов
 type Server struct {
-	router    *chi.Mux            // HTTP-роутер на основе chi
-	url       string              // Адрес, на котором работает сервер (например, ":8080")
-	Collector *service.Collector  // Служба сбора и хранения метрик
-	Sugar     *zap.SugaredLogger  // Удобный интерфейс логирования
-	logger    *zap.Logger         // Структурированный логгер
-	key       string              // Ключ для проверки HMAC-SHA256 в заголовке HashSHA256
-	auditor   *audit.AuditManager // Менеджер аудита (файл + HTTP)
-	srv       *http.Server        // Стандартный HTTP-сервер Go
-	keyCrypt  *rsa.PrivateKey     // Ключ для шифрования
+	router        *chi.Mux            // HTTP-роутер на основе chi
+	url           string              // Адрес, на котором работает сервер (например, ":8080")
+	Collector     *service.Collector  // Служба сбора и хранения метрик
+	Sugar         *zap.SugaredLogger  // Удобный интерфейс логирования
+	logger        *zap.Logger         // Структурированный логгер
+	key           string              // Ключ для проверки HMAC-SHA256 в заголовке HashSHA256
+	auditor       *audit.AuditManager // Менеджер аудита (файл + HTTP)
+	srv           *http.Server        // Стандартный HTTP-сервер Go
+	keyCrypt      *rsa.PrivateKey     // Ключ для шифрования
+	TrustedSubnet string              // Доверенная подсеть
+	mcs.UnimplementedMetricsServer
 }
 
 // NewServer создаёт новый экземпляр HTTP-сервера.
@@ -101,15 +106,16 @@ func NewServer(ctx context.Context, cfg *config.ServerOptions, logger *zap.Logge
 	}
 
 	return &Server{
-		router:    r,
-		url:       cfg.Host,
-		Collector: collector,
-		Sugar:     logger.Sugar(),
-		logger:    logger,
-		key:       cfg.Key,
-		srv:       server,
-		auditor:   auditor,
-		keyCrypt:  key,
+		router:        r,
+		url:           cfg.Host,
+		Collector:     collector,
+		Sugar:         logger.Sugar(),
+		logger:        logger,
+		key:           cfg.Key,
+		srv:           server,
+		auditor:       auditor,
+		keyCrypt:      key,
+		TrustedSubnet: cfg.TrustedSubnet,
 	}, nil
 }
 
@@ -141,7 +147,7 @@ func (s *Server) StartAndListen(ctx context.Context) error {
 	s.router.Get("/ping", s.pingDBHandler)
 	s.router.Post("/updates/", s.updateSeveralJSONHandler)
 	if err := s.srv.ListenAndServe(); err != nil {
-		return err
+		return fmt.Errorf("ошибка запуска слушателя:%v", err)
 	}
 	return nil
 }
@@ -162,4 +168,22 @@ func (s *Server) Shutdown(ctx context.Context) {
 		errClose := s.srv.Close()
 		s.logger.Error("Ошибка при закрытии сервера", zap.Error(err), zap.Error(errClose))
 	}
+}
+
+// IsIPInCIDR проверяет, входит ли IP в CIDR-подсеть.
+func IsIPInCIDR(ipStr string, cidrStr string) (bool, error) {
+	if cidrStr == "" {
+		return true, nil
+	}
+	_, cidr, err := net.ParseCIDR(cidrStr)
+	if err != nil {
+		return false, fmt.Errorf("невалидный CIDR '%s': %w", cidrStr, err)
+	}
+
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false, fmt.Errorf("невалидный IP '%s'", ipStr)
+	}
+
+	return cidr.Contains(ip), nil
 }

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/annakonkova23/collect-metrics/internal/model"
@@ -36,7 +35,7 @@ func NewMetricsUpdater(logger *zap.Logger, pollInterval int) *MetricsUpdater {
 }
 
 // UpdateRuntimeMetric - метод для обновления метрик runtime.
-func (mu *MetricsUpdater) UpdateRuntimeMetric(ctx context.Context, chanel chan []byte) {
+func (mu *MetricsUpdater) UpdateRuntimeMetric(ctx context.Context, chanel chan []*model.Metrics) {
 	mu.logger.Info("Запускаем обновление runtime метрик",
 		zap.Int("pollInterval", mu.pollInterval),
 	)
@@ -48,20 +47,20 @@ func (mu *MetricsUpdater) UpdateRuntimeMetric(ctx context.Context, chanel chan [
 			return
 		case <-ticker.C:
 			mu.runMetric.UpdateMetric()
-			jsMetrics, err := mu.codeMapRuntimeToMetricsByte(mu.runMetric.Metrics, typeRuntime)
+			metrics, err := mu.codeMapRuntimeToMetrics(mu.runMetric.Metrics, typeRuntime)
 			if err != nil {
 				mu.logger.Error("Ошибка кодирования метрик",
 					zap.Error(err),
 				)
 			} else {
-				chanel <- jsMetrics
+				chanel <- metrics
 			}
 		}
 	}
 }
 
 // UpateUtilMetric - метод для обновления метрик util.
-func (mu *MetricsUpdater) UpateUtilMetric(ctx context.Context, chanel chan []byte) {
+func (mu *MetricsUpdater) UpateUtilMetric(ctx context.Context, chanel chan []*model.Metrics) {
 	mu.logger.Info("Запускаем обновление util метрик",
 		zap.Int("pollInterval", mu.pollInterval),
 	)
@@ -78,20 +77,20 @@ func (mu *MetricsUpdater) UpateUtilMetric(ctx context.Context, chanel chan []byt
 					zap.Error(err),
 				)
 			}
-			jsMetrics, err := mu.codeMapRuntimeToMetricsByte(metricValue, typeUtil)
+			metrics, err := mu.codeMapRuntimeToMetrics(metricValue, typeUtil)
 			if err != nil {
 				mu.logger.Error("Ошибка кодирования метрик",
 					zap.Error(err),
 				)
 			} else {
-				chanel <- jsMetrics
+				chanel <- metrics
 			}
 		}
 	}
 }
 
 // codeMapRuntimeToMetricsByte - метод для кодирования метрик в JSON.
-func (mu *MetricsUpdater) codeMapRuntimeToMetricsByte(val map[string]float64, typeCalc string) ([]byte, error) {
+func (mu *MetricsUpdater) codeMapRuntimeToMetrics(val map[string]float64, typeCalc string) ([]*model.Metrics, error) {
 	mcs := make([]*model.Metrics, len(val))
 	typeM := ""
 	i := 0
@@ -111,10 +110,6 @@ func (mu *MetricsUpdater) codeMapRuntimeToMetricsByte(val map[string]float64, ty
 		mcs[i] = metric
 		i++
 	}
-	result, err := json.Marshal(mcs)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return mcs, nil
 
 }

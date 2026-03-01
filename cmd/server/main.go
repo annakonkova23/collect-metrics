@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"runtime/pprof"
@@ -15,9 +16,11 @@ import (
 
 	"github.com/annakonkova23/collect-metrics/internal/config"
 	"github.com/annakonkova23/collect-metrics/internal/config/db"
-	"github.com/annakonkova23/collect-metrics/internal/handler"
+	handlerServer "github.com/annakonkova23/collect-metrics/internal/handler"
 	"github.com/annakonkova23/collect-metrics/internal/service"
+	mcs "github.com/annakonkova23/collect-metrics/pkg/metrics"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 var buildVersion string
@@ -25,7 +28,6 @@ var buildDate string
 var buildCommit string
 
 func main() {
-
 	config.PrintBuildInfo(buildVersion, buildDate, buildCommit)
 
 	options := config.NewServerOptions()
@@ -56,7 +58,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	h, err := handler.NewServer(ctx, options, logger, collector)
+	h, err := handlerServer.NewServer(ctx, options, logger, collector)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -66,16 +68,22 @@ func main() {
 		zap.String("host", options.Host),
 	)
 
+	errCh := make(chan error, 1)
+
 	go func() {
-		if err := h.StartAndListen(ctx); err != nil {
-			logger.Error("Сервер завершился с ошибкой", zap.Error(err))
-		}
+		errCh <- h.StartAndListen(ctx)
 	}()
+
+	if options.GrpcHost != "" {
+		go func() {
+			errCh <- StartGrpcServer(logger, options.GrpcHost, options.TrustedSubnet, h)
+		}()
+	}
 
 	go func() {
 		log.Println("pprof: http://localhost:6061/debug/pprof/")
 		if err := http.ListenAndServe("localhost:6061", nil); err != nil {
-			log.Fatal(err)
+			errCh <- fmt.Errorf("pprof server failed: %w", err)
 		}
 	}()
 
@@ -85,10 +93,10 @@ func main() {
 		defer cancel()
 
 		h.Shutdown(shutdownCtx)
-		fmt.Println("Получен сигнал завершения. Сохраняю данные...")
-		logger.Info("Контекст завершён, сохраняю данные", zap.Error(ctx.Err()))
-
+		logger.Info("Получен сигнал завершения. Сохраняю данные...")
 		collector.GetDataAndSaveToFile()
+		return
+
 	case <-quitCh:
 		fmt.Fprintln(os.Stderr, "Получен сигнал SIGQUIT: goroutine dump (pprof)")
 		if p := pprof.Lookup("goroutine"); p != nil {
@@ -96,8 +104,30 @@ func main() {
 		} else {
 			fmt.Fprintln(os.Stderr, "pprof.Lookup(\"goroutine\") вернул nil")
 		}
-	}
+		return
 
+	case err := <-errCh:
+		if err != nil {
+			log.Printf("Критическая ошибка в горутине: %v", err)
+			log.Fatal(err)
+		}
+	}
 }
 
-///github.com/annakonkova23/collect-metrics
+func StartGrpcServer(lgr *zap.Logger, host, cidr string, srv *handlerServer.Server) error {
+	listen, err := net.Listen("tcp", host)
+	if err != nil {
+		return fmt.Errorf("ошибка создания слушателя: %v", err)
+	}
+
+	s := grpc.NewServer(grpc.UnaryInterceptor(handlerServer.InterceptorCheckIsIPInCIDR(cidr)))
+
+	mcs.RegisterMetricsServer(s, srv)
+
+	lgr.Info("сервер gRPC начал работу", zap.String("host", host))
+
+	if err := s.Serve(listen); err != nil {
+		return fmt.Errorf("ошибка запуска grpc сервера: %v", err)
+	}
+	return nil
+}

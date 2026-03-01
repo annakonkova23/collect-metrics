@@ -19,6 +19,8 @@ type AgentOptions struct {
 	RateLimiter    int
 	KeyPath        string
 	FileConfig     string
+	UseGrpc        bool
+	HostGrpc       string
 }
 
 // NewAgentOptions создает новый объект AgentOptions.
@@ -53,6 +55,8 @@ func getAgentOptionsFromEnv(def *AgentOptions) *AgentOptions {
 	agentOptions.RateLimiter = getEnvInt("RATE_LIMIT", def.RateLimiter)
 	agentOptions.KeyPath = getEnvString("CRYPTO_KEY", def.KeyPath)
 	agentOptions.FileConfig = getEnvString("CONFIG", def.FileConfig)
+	agentOptions.UseGrpc = getEnvBool("USE_GRPC", def.UseGrpc)
+	agentOptions.HostGrpc = getEnvString("GRPC_HOST", def.HostGrpc)
 
 	return agentOptions
 }
@@ -97,6 +101,18 @@ func getAgentOptionsFromFile(path string) (*AgentOptions, error) {
 			} else {
 				log.Printf("некорректный тип для 'crypto_key': %T", value)
 			}
+		case "use_grpc":
+			if b, ok := AsBool(value); ok {
+				ao.UseGrpc = b
+			} else {
+				log.Printf("некорректный тип для 'use_grpc': %T", value)
+			}
+		case "grpc_host":
+			if s, ok := AsString(value); ok {
+				ao.HostGrpc = s
+			} else {
+				log.Printf("некорректный тип для 'grpc_host': %T", value)
+			}
 		default:
 			log.Printf("неизвестный ключ конфига: %s", key)
 		}
@@ -115,6 +131,8 @@ func getAgentOptionsFromFlag() *AgentOptions {
 	keyPathFlag := flag.String("crypto-key", "", "Путь до публичного ключа")
 	fileConfigFlag := flag.String("c", "agent.json", "Путь до файла конфигурации")
 	fileConfigFlag = flag.String("config", *fileConfigFlag, "Путь до файла конфигурации")
+	grpcFlag := flag.Bool("grpc", false, "Использовать gRPC")
+	grpcHostFlag := flag.String("grpc-host", "", "Адрес gRPC сервера")
 	flag.Parse()
 
 	ao := &AgentOptions{}
@@ -125,6 +143,8 @@ func getAgentOptionsFromFlag() *AgentOptions {
 	ao.RateLimiter = *rateLimiterFlag
 	ao.KeyPath = *keyPathFlag
 	ao.FileConfig = *fileConfigFlag
+	ao.UseGrpc = *grpcFlag
+	ao.HostGrpc = *grpcHostFlag
 
 	return ao
 }
