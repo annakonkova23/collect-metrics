@@ -147,7 +147,7 @@ func (s *Server) StartAndListen(ctx context.Context) error {
 	s.router.Get("/ping", s.pingDBHandler)
 	s.router.Post("/updates/", s.updateSeveralJSONHandler)
 	if err := s.srv.ListenAndServe(); err != nil {
-		return err
+		return fmt.Errorf("ошибка запуска слушателя:%v", err)
 	}
 	return nil
 }

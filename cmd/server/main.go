@@ -21,9 +21,6 @@ import (
 	mcs "github.com/annakonkova23/collect-metrics/pkg/metrics"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
 )
 
 var buildVersion string
@@ -31,7 +28,6 @@ var buildDate string
 var buildCommit string
 
 func main() {
-
 	config.PrintBuildInfo(buildVersion, buildDate, buildCommit)
 
 	options := config.NewServerOptions()
@@ -72,24 +68,22 @@ func main() {
 		zap.String("host", options.Host),
 	)
 
+	errCh := make(chan error, 1)
+
 	go func() {
-		if err := h.StartAndListen(ctx); err != nil {
-			logger.Error("Сервер завершился с ошибкой", zap.Error(err))
-		}
+		errCh <- h.StartAndListen(ctx)
 	}()
 
 	if options.GrpcHost != "" {
 		go func() {
-			if err := StartGrpcServer(logger, options.GrpcHost, options.TrustedSubnet, h); err != nil {
-				logger.Error("Ошибка запуска gRPC сервера", zap.Error(err))
-			}
+			errCh <- StartGrpcServer(logger, options.GrpcHost, options.TrustedSubnet, h)
 		}()
 	}
 
 	go func() {
 		log.Println("pprof: http://localhost:6061/debug/pprof/")
 		if err := http.ListenAndServe("localhost:6061", nil); err != nil {
-			log.Fatal(err)
+			errCh <- fmt.Errorf("pprof server failed: %w", err)
 		}
 	}()
 
@@ -99,10 +93,10 @@ func main() {
 		defer cancel()
 
 		h.Shutdown(shutdownCtx)
-		fmt.Println("Получен сигнал завершения. Сохраняю данные...")
-		logger.Info("Контекст завершён, сохраняю данные", zap.Error(ctx.Err()))
-
+		logger.Info("Получен сигнал завершения. Сохраняю данные...")
 		collector.GetDataAndSaveToFile()
+		return
+
 	case <-quitCh:
 		fmt.Fprintln(os.Stderr, "Получен сигнал SIGQUIT: goroutine dump (pprof)")
 		if p := pprof.Lookup("goroutine"); p != nil {
@@ -110,46 +104,30 @@ func main() {
 		} else {
 			fmt.Fprintln(os.Stderr, "pprof.Lookup(\"goroutine\") вернул nil")
 		}
-	}
+		return
 
+	case err := <-errCh:
+		if err != nil {
+			log.Printf("Критическая ошибка в горутине: %v", err)
+			log.Fatal(err)
+		}
+	}
 }
 
 func StartGrpcServer(lgr *zap.Logger, host, cidr string, srv *handlerServer.Server) error {
 	listen, err := net.Listen("tcp", host)
 	if err != nil {
-		return err
+		return fmt.Errorf("ошибка создания слушателя: %v", err)
 	}
 
-	s := grpc.NewServer(grpc.UnaryInterceptor(IsIPInCIDR(cidr)))
+	s := grpc.NewServer(grpc.UnaryInterceptor(handlerServer.InterceptorCheckIsIPInCIDR(cidr)))
 
 	mcs.RegisterMetricsServer(s, srv)
 
 	lgr.Info("сервер gRPC начал работу", zap.String("host", host))
 
 	if err := s.Serve(listen); err != nil {
-		return err
+		return fmt.Errorf("ошибка запуска grpc сервера: %v", err)
 	}
 	return nil
-}
-
-func IsIPInCIDR(cidr string) func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		var ip string
-
-		md, ok := metadata.FromIncomingContext(ctx)
-		if ok {
-			values := md.Get("x-real-ip")
-			if len(values) > 0 {
-				ip = values[0]
-				if is, err := handlerServer.IsIPInCIDR(ip, cidr); err != nil {
-					return nil, status.Error(codes.PermissionDenied, err.Error())
-				} else {
-					if !is {
-						return nil, status.Errorf(codes.PermissionDenied, "IP %s не принадлежит доверенной сети %s", ip, cidr)
-					}
-				}
-			}
-		}
-		return handler(ctx, req)
-	}
 }
